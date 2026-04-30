@@ -159,21 +159,32 @@ export async function initCommand(): Promise<void> {
 
   // ─── Install @qflow/core in the target project ─────────────────────────────
 
-  console.log(chalk.dim('  Installing @qflow/core...'));
+  const devDeps = ['@qflow/core'];
+
+  if (runnerType === 'playwright') devDeps.push('@playwright/test');
+  if (runnerType === 'jest') devDeps.push('jest', '@types/jest', 'ts-jest');
+
+  console.log(chalk.dim(`  Installing ${devDeps.join(', ')}...`));
   try {
     // detect package manager
     let pm = 'npm';
     try { await access(join(cwd, 'pnpm-lock.yaml')); pm = 'pnpm'; } catch {}
     try { await access(join(cwd, 'yarn.lock')); pm = 'yarn'; } catch {}
-    const installArgs = pm === 'npm'
-      ? 'install --save-dev @qflow/core'
+    const installCmd = pm === 'npm'
+      ? `install --save-dev ${devDeps.join(' ')}`
       : pm === 'pnpm'
-        ? 'add -D @qflow/core'
-        : 'add --dev @qflow/core';
-    execSync(`${pm} ${installArgs}`, { cwd, stdio: 'inherit' });
-    console.log(chalk.green('  ✓ Installed @qflow/core'));
+        ? `add -D ${devDeps.join(' ')}`
+        : `add --dev ${devDeps.join(' ')}`;
+    execSync(`${pm} ${installCmd}`, { cwd, stdio: 'inherit' });
+    console.log(chalk.green(`  ✓ Installed ${devDeps.join(', ')}`));
+
+    if (runnerType === 'playwright') {
+      console.log(chalk.dim('  Installing Playwright browsers (this takes ~30s)...'));
+      execSync('npx playwright install --with-deps chromium', { cwd, stdio: 'inherit' });
+      console.log(chalk.green('  ✓ Playwright browsers ready'));
+    }
   } catch {
-    console.log(chalk.yellow('  ⚠ Could not auto-install @qflow/core. Run: npm install --save-dev @qflow/core'));
+    console.log(chalk.yellow(`  ⚠ Could not auto-install dependencies. Run manually:\n    npm install --save-dev ${devDeps.join(' ')}`));
   }
 
   // ─── GitHub Actions workflow ───────────────────────────────────────────────
