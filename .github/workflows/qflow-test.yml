@@ -1,0 +1,56 @@
+name: qflow tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Required for gh-pages publishing and creating Draft PRs (Phase 3)
+permissions:
+  contents: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so git worktree can access the gh-pages branch
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Environment setup (edit scripts/setup-env.sh for Docker / DB / seed)
+      - name: Set up test environment
+        run: bash scripts/setup-env.sh
+
+      # ── Playwright only: install browsers ─────────────────────────────────
+      # Remove this step if you are not using Playwright
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run tests
+        run: npx qflow run --suite ${{ github.event_name == 'pull_request' && 'pr-smart' || 'regression' }}
+        env:
+          # Allows qflow to commit run results to the gh-pages branch
+          GIT_AUTHOR_NAME: qflow-bot
+          GIT_AUTHOR_EMAIL: qflow-bot@users.noreply.github.com
+          GIT_COMMITTER_NAME: qflow-bot
+          GIT_COMMITTER_EMAIL: qflow-bot@users.noreply.github.com
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Integration secrets — add these in repo Settings → Secrets
+          QFLOW_JIRA_TOKEN: ${{ secrets.QFLOW_JIRA_TOKEN }}
+          QFLOW_JIRA_URL: ${{ secrets.QFLOW_JIRA_URL }}
+          QFLOW_LLM_API_KEY: ${{ secrets.QFLOW_LLM_API_KEY }}
+          QFLOW_SLACK_WEBHOOK: ${{ secrets.QFLOW_SLACK_WEBHOOK }}
+          QFLOW_TEAMS_WEBHOOK: ${{ secrets.QFLOW_TEAMS_WEBHOOK }}

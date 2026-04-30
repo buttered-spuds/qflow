@@ -1,0 +1,14 @@
+{
+  "name": "qflow-template",
+  "version": "0.1.0",
+  "description": "Starter project for qflow — clone this for greenfield projects",
+  "scripts": {
+    "test": "npx qflow run",
+    "test:smoke": "npx qflow run --suite smoke",
+    "test:local": "npx qflow run --local"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "@qflow/cli": "workspace:*"
+  }
+}

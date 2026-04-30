@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "paths": {
+      "@qflow/core": ["./packages/core/src/index.ts"],
+      "@qflow/cli": ["./packages/cli/src/index.ts"]
+    },
+    "noEmit": true
+  },
+  "include": [
+    "framework.config.example.ts",
+    "packages/*/src/**/*.ts"
+  ],
+  "exclude": [
+    "packages/*/dist",
+    "node_modules"
+  ]
+}

@@ -1,0 +1,31 @@
+name: qflow coverage check
+
+on:
+  schedule:
+    # Every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  coverage-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Phase 4: JIRA Agent fetches Done stories and checks for missing tests.
+      # For now this will print the Phase 4 notice.
+      - name: Run coverage drift check
+        run: npx qflow coverage-check
+        env:
+          QFLOW_JIRA_TOKEN: ${{ secrets.QFLOW_JIRA_TOKEN }}
+          QFLOW_JIRA_URL: ${{ secrets.QFLOW_JIRA_URL }}
+          QFLOW_SLACK_WEBHOOK: ${{ secrets.QFLOW_SLACK_WEBHOOK }}
