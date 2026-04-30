@@ -1,0 +1,222 @@
+{
+  "name": "qflow-vscode",
+  "displayName": "qflow",
+  "description": "AI-orchestrated testing framework — run, generate, heal and explore tests from VS Code",
+  "version": "0.2.0",
+  "publisher": "qflow",
+  "icon": "media/icon.png",
+  "license": "MIT",
+  "homepage": "https://github.com/buttered-spuds/qflow#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/buttered-spuds/qflow.git",
+    "directory": "packages/vscode-extension"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Testing",
+    "Other"
+  ],
+  "keywords": [
+    "testing",
+    "playwright",
+    "jest",
+    "vitest",
+    "pytest",
+    "ai",
+    "jira",
+    "qflow"
+  ],
+  "activationEvents": [
+    "workspaceContains:framework.config.ts",
+    "workspaceContains:.qflow"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "qflow.run",
+        "title": "Run Tests",
+        "category": "qflow",
+        "icon": "$(play)"
+      },
+      {
+        "command": "qflow.runSmoke",
+        "title": "Run Smoke Suite",
+        "category": "qflow",
+        "icon": "$(flame)"
+      },
+      {
+        "command": "qflow.runLocal",
+        "title": "Run Tests (Local / Offline)",
+        "category": "qflow",
+        "icon": "$(play)"
+      },
+      {
+        "command": "qflow.generate",
+        "title": "Generate Tests from Ticket",
+        "category": "qflow",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "qflow.generateFromDescription",
+        "title": "Generate Tests from Description",
+        "category": "qflow",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "qflow.openDashboard",
+        "title": "Open Dashboard",
+        "category": "qflow",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "qflow.heal",
+        "title": "Heal Broken Selectors",
+        "category": "qflow",
+        "icon": "$(wrench)"
+      },
+      {
+        "command": "qflow.doctor",
+        "title": "Run Doctor (Health Check)",
+        "category": "qflow",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "qflow.costs",
+        "title": "Show LLM Costs",
+        "category": "qflow",
+        "icon": "$(credit-card)"
+      },
+      {
+        "command": "qflow.flakiness",
+        "title": "Show Flakiness Report",
+        "category": "qflow",
+        "icon": "$(warning)"
+      },
+      {
+        "command": "qflow.refresh",
+        "title": "Refresh",
+        "category": "qflow",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "qflow.replayFailed",
+        "title": "Replay Failed Tests",
+        "category": "qflow",
+        "icon": "$(debug-rerun)"
+      },
+      {
+        "command": "qflow.watch",
+        "title": "Start Watch Mode",
+        "category": "qflow",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "qflow.openRunDetail",
+        "title": "Open Run Detail",
+        "category": "qflow"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "qflow-explorer",
+          "title": "qflow",
+          "icon": "media/qflow-activitybar.svg"
+        }
+      ]
+    },
+    "views": {
+      "qflow-explorer": [
+        {
+          "id": "qflow.testExplorer",
+          "name": "Tests",
+          "icon": "media/qflow-activitybar.svg",
+          "contextualTitle": "qflow Tests"
+        },
+        {
+          "id": "qflow.runsHistory",
+          "name": "Run History",
+          "icon": "media/qflow-activitybar.svg",
+          "contextualTitle": "qflow Run History"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "qflow.run",
+          "when": "view == qflow.testExplorer",
+          "group": "navigation@1"
+        },
+        {
+          "command": "qflow.refresh",
+          "when": "view == qflow.testExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "qflow.refresh",
+          "when": "view == qflow.runsHistory",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "qflow.run",
+          "when": "viewItem == qflow.suite",
+          "group": "qflow@1"
+        },
+        {
+          "command": "qflow.openRunDetail",
+          "when": "viewItem == qflow.run",
+          "group": "qflow@1"
+        }
+      ],
+      "commandPalette": [
+        { "command": "qflow.openRunDetail", "when": "false" }
+      ]
+    },
+    "configuration": {
+      "title": "qflow",
+      "properties": {
+        "qflow.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the qflow CLI binary. Leave blank to use `npx @qflow/cli` (recommended)."
+        },
+        "qflow.defaultSuite": {
+          "type": "string",
+          "default": "regression",
+          "enum": ["regression", "smoke", "pr-smart"],
+          "description": "Default test suite to run."
+        },
+        "qflow.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh the test explorer after each run."
+        },
+        "qflow.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the qflow status bar item."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "pnpm run build && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.21.0",
+    "typescript": "^5.4.5"
+  }
+}

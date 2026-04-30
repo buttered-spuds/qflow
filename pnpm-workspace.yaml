@@ -3,3 +3,4 @@ packages:
   - 'dashboard'
 allowBuilds:
   esbuild: true
+  '@vscode/vsce': true

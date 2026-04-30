@@ -45,15 +45,42 @@ npx @qflow/cli dashboard
 
 ---
 
+## VS Code Extension
+
+The qflow VS Code extension gives you a first-class testing UI without leaving your editor:
+
+- **Test Explorer** — browse suites and latest results in the Activity Bar
+- **Run History** — see all past runs and drill into individual test results
+- **Status Bar** — always-visible last-run summary (e.g. `✓ 42 passed`)
+- **Dashboard Webview** — open the results dashboard inside VS Code
+- **Command Palette** — run tests, generate from a ticket, heal selectors, and more
+
+### Auto-install
+
+`npx @qflow/cli init` detects VS Code automatically (via `TERM_PROGRAM` / `VSCODE_PID`) and offers to install the extension with one keypress using the `code` CLI.
+
+### Manual install
+
+Search for **qflow** in the Extensions marketplace (`Ctrl+Shift+X`), or run:
+
+```bash
+code --install-extension qflow.qflow-vscode
+```
+
+> See [packages/vscode-extension/README.md](packages/vscode-extension/README.md) for all commands and settings.
+
+---
+
 ## Project structure
 
 ```
 test-framework/
 ├── packages/
-│   ├── core/        @qflow/core — agents, runner adapters, notification adapters
-│   ├── cli/         @qflow/cli  — npx @qflow/cli binary
-│   └── template/    Starter project for greenfield repos
-├── dashboard/       Static SPA deployed to GitHub Pages
+│   ├── core/              @qflow/core — agents, runner adapters, notification adapters
+│   ├── cli/               @qflow/cli  — npx @qflow/cli binary
+│   ├── vscode-extension/  qflow VS Code extension
+│   └── template/          Starter project for greenfield repos
+├── dashboard/             Static SPA deployed to GitHub Pages
 └── .github/
     └── workflows/
         ├── qflow-test.yml            CI test runner + gh-pages publisher
@@ -182,5 +209,6 @@ The other workflow in `.github/workflows/` (`qflow-test.yml`) is the **example**
 See the READMEs in each package for package-specific details:
 - [packages/core/README.md](packages/core/README.md)
 - [packages/cli/README.md](packages/cli/README.md)
+- [packages/vscode-extension/README.md](packages/vscode-extension/README.md)
 - [packages/template/README.md](packages/template/README.md)
 - [dashboard/README.md](dashboard/README.md)
