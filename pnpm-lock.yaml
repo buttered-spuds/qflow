@@ -78,12 +78,16 @@ importers:
         version: link:../cli
 
   packages/vscode-extension:
+    dependencies:
+      '@qflow/core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/node':
         specifier: ^20.14.0
         version: 20.19.39
       '@types/vscode':
-        specifier: ^1.85.0
+        specifier: ^1.90.0
         version: 1.118.0
       '@vscode/vsce':
         specifier: ^3.0.0

@@ -2,7 +2,7 @@
   "name": "qflow-vscode",
   "displayName": "qflow",
   "description": "AI-orchestrated testing framework — run, generate, heal and explore tests from VS Code",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "qflow",
   "icon": "media/icon.png",
   "license": "MIT",
@@ -13,7 +13,7 @@
     "directory": "packages/vscode-extension"
   },
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.90.0"
   },
   "categories": [
     "Testing",
@@ -31,152 +31,97 @@
   ],
   "activationEvents": [
     "workspaceContains:framework.config.ts",
-    "workspaceContains:.qflow"
+    "workspaceContains:framework.config.js",
+    "workspaceContains:qflow.config.ts",
+    "workspaceContains:**/*.spec.ts",
+    "workspaceContains:**/*.spec.js",
+    "workspaceContains:**/*.test.ts",
+    "workspaceContains:**/*.test.js",
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "onCommand:qflow.run"
   ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "qflow.run",
-        "title": "Run Tests",
-        "category": "qflow",
-        "icon": "$(play)"
-      },
-      {
-        "command": "qflow.runSmoke",
-        "title": "Run Smoke Suite",
-        "category": "qflow",
-        "icon": "$(flame)"
-      },
-      {
-        "command": "qflow.runLocal",
-        "title": "Run Tests (Local / Offline)",
-        "category": "qflow",
-        "icon": "$(play)"
-      },
-      {
-        "command": "qflow.generate",
-        "title": "Generate Tests from Ticket",
-        "category": "qflow",
-        "icon": "$(sparkle)"
-      },
-      {
-        "command": "qflow.generateFromDescription",
-        "title": "Generate Tests from Description",
-        "category": "qflow",
-        "icon": "$(sparkle)"
-      },
-      {
-        "command": "qflow.openDashboard",
-        "title": "Open Dashboard",
-        "category": "qflow",
-        "icon": "$(graph)"
-      },
-      {
-        "command": "qflow.heal",
-        "title": "Heal Broken Selectors",
-        "category": "qflow",
-        "icon": "$(wrench)"
-      },
-      {
-        "command": "qflow.doctor",
-        "title": "Run Doctor (Health Check)",
-        "category": "qflow",
-        "icon": "$(pulse)"
-      },
-      {
-        "command": "qflow.costs",
-        "title": "Show LLM Costs",
-        "category": "qflow",
-        "icon": "$(credit-card)"
-      },
-      {
-        "command": "qflow.flakiness",
-        "title": "Show Flakiness Report",
-        "category": "qflow",
-        "icon": "$(warning)"
-      },
-      {
-        "command": "qflow.refresh",
-        "title": "Refresh",
-        "category": "qflow",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "qflow.replayFailed",
-        "title": "Replay Failed Tests",
-        "category": "qflow",
-        "icon": "$(debug-rerun)"
-      },
-      {
-        "command": "qflow.watch",
-        "title": "Start Watch Mode",
-        "category": "qflow",
-        "icon": "$(eye)"
-      },
-      {
-        "command": "qflow.openRunDetail",
-        "title": "Open Run Detail",
-        "category": "qflow"
-      }
+      { "command": "qflow.run",                     "title": "Run Tests",                          "category": "qflow", "icon": "$(play)" },
+      { "command": "qflow.runSmoke",                "title": "Run Smoke Suite",                    "category": "qflow", "icon": "$(flame)" },
+      { "command": "qflow.runLocal",                "title": "Run Tests (Local / Offline)",        "category": "qflow", "icon": "$(play)" },
+      { "command": "qflow.runTest",                 "title": "Run This Test",                      "category": "qflow", "icon": "$(play)" },
+      { "command": "qflow.runFile",                 "title": "Run Tests in File",                  "category": "qflow", "icon": "$(play)" },
+      { "command": "qflow.generate",                "title": "Generate Tests from Ticket",         "category": "qflow", "icon": "$(sparkle)" },
+      { "command": "qflow.generateFromDescription", "title": "Generate Tests from Description",    "category": "qflow", "icon": "$(sparkle)" },
+      { "command": "qflow.openDashboard",           "title": "Open Dashboard",                     "category": "qflow", "icon": "$(graph)" },
+      { "command": "qflow.heal",                    "title": "Heal Broken Selectors",              "category": "qflow", "icon": "$(wrench)" },
+      { "command": "qflow.healTest",                "title": "Heal This Test",                     "category": "qflow", "icon": "$(wrench)" },
+      { "command": "qflow.doctor",                  "title": "Run Doctor (Health Check)",          "category": "qflow", "icon": "$(pulse)" },
+      { "command": "qflow.costs",                   "title": "Show LLM Costs",                     "category": "qflow", "icon": "$(credit-card)" },
+      { "command": "qflow.flakiness",               "title": "Show Flakiness Report",              "category": "qflow", "icon": "$(warning)" },
+      { "command": "qflow.refresh",                 "title": "Refresh",                            "category": "qflow", "icon": "$(refresh)" },
+      { "command": "qflow.replayFailed",            "title": "Replay Failed Tests",                "category": "qflow", "icon": "$(debug-rerun)" },
+      { "command": "qflow.replayRun",               "title": "Replay This Run",                    "category": "qflow", "icon": "$(debug-rerun)" },
+      { "command": "qflow.watch",                   "title": "Start Watch Mode",                   "category": "qflow", "icon": "$(eye)" },
+      { "command": "qflow.openRunDetail",           "title": "Open Run Detail",                    "category": "qflow" },
+      { "command": "qflow.openTestSource",          "title": "Open Test Source",                   "category": "qflow", "icon": "$(go-to-file)" }
+    ],
+    "keybindings": [
+      { "command": "qflow.run",        "key": "ctrl+shift+t",       "mac": "cmd+shift+t",       "when": "editorTextFocus || !editorIsOpen" },
+      { "command": "qflow.runSmoke",   "key": "ctrl+shift+alt+t",   "mac": "cmd+shift+alt+t",   "when": "editorTextFocus || !editorIsOpen" },
+      { "command": "qflow.runFile",    "key": "ctrl+shift+f5",      "mac": "cmd+shift+f5",      "when": "resourceFilename =~ /\\.(spec|test)\\.[jt]sx?$/" },
+      { "command": "qflow.heal",       "key": "ctrl+shift+h",       "mac": "cmd+shift+h",       "when": "editorTextFocus" }
     ],
     "viewsContainers": {
       "activitybar": [
-        {
-          "id": "qflow-explorer",
-          "title": "qflow",
-          "icon": "media/qflow-activitybar.svg"
-        }
+        { "id": "qflow-explorer", "title": "qflow", "icon": "media/qflow-activitybar.svg" }
       ]
     },
     "views": {
       "qflow-explorer": [
-        {
-          "id": "qflow.testExplorer",
-          "name": "Tests",
-          "icon": "media/qflow-activitybar.svg",
-          "contextualTitle": "qflow Tests"
-        },
-        {
-          "id": "qflow.runsHistory",
-          "name": "Run History",
-          "icon": "media/qflow-activitybar.svg",
-          "contextualTitle": "qflow Run History"
-        }
+        { "id": "qflow.testExplorer",  "name": "Tests",        "icon": "media/qflow-activitybar.svg", "contextualTitle": "qflow Tests" },
+        { "id": "qflow.runsHistory",   "name": "Run History",  "icon": "media/qflow-activitybar.svg", "contextualTitle": "qflow Run History" },
+        { "id": "qflow.flakinessView", "name": "Flakiness",    "icon": "media/qflow-activitybar.svg", "contextualTitle": "qflow Flakiness" }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "qflow.testExplorer",
+        "contents": "No qflow data yet.\n[Run all tests](command:qflow.run)\n[Run smoke suite](command:qflow.runSmoke)\n[Open dashboard](command:qflow.openDashboard)\n\nLearn more about [qflow](https://github.com/buttered-spuds/qflow#readme)."
+      },
+      {
+        "view": "qflow.runsHistory",
+        "contents": "No runs recorded yet.\n[Run tests now](command:qflow.run)"
+      },
+      {
+        "view": "qflow.flakinessView",
+        "contents": "No flakiness data yet — needs at least 2 runs.\n[Run tests now](command:qflow.run)"
+      }
+    ],
     "menus": {
       "view/title": [
-        {
-          "command": "qflow.run",
-          "when": "view == qflow.testExplorer",
-          "group": "navigation@1"
-        },
-        {
-          "command": "qflow.refresh",
-          "when": "view == qflow.testExplorer",
-          "group": "navigation@2"
-        },
-        {
-          "command": "qflow.refresh",
-          "when": "view == qflow.runsHistory",
-          "group": "navigation@1"
-        }
+        { "command": "qflow.run",     "when": "view == qflow.testExplorer", "group": "navigation@1" },
+        { "command": "qflow.refresh", "when": "view == qflow.testExplorer", "group": "navigation@2" },
+        { "command": "qflow.refresh", "when": "view == qflow.runsHistory",  "group": "navigation@1" },
+        { "command": "qflow.refresh", "when": "view == qflow.flakinessView","group": "navigation@1" }
       ],
       "view/item/context": [
-        {
-          "command": "qflow.run",
-          "when": "viewItem == qflow.suite",
-          "group": "qflow@1"
-        },
-        {
-          "command": "qflow.openRunDetail",
-          "when": "viewItem == qflow.run",
-          "group": "qflow@1"
-        }
+        { "command": "qflow.runFile",         "when": "view == qflow.testExplorer && viewItem == qflow.file",  "group": "inline@1" },
+        { "command": "qflow.openTestSource",  "when": "view == qflow.testExplorer && viewItem == qflow.test",  "group": "inline@1" },
+        { "command": "qflow.runTest",         "when": "view == qflow.testExplorer && viewItem == qflow.test",  "group": "qflow@1" },
+        { "command": "qflow.healTest",        "when": "view == qflow.testExplorer && viewItem == qflow.test",  "group": "qflow@2" },
+        { "command": "qflow.openRunDetail",   "when": "view == qflow.runsHistory   && viewItem == qflow.run",  "group": "qflow@1" },
+        { "command": "qflow.replayRun",       "when": "view == qflow.runsHistory   && viewItem == qflow.run",  "group": "qflow@2" }
+      ],
+      "editor/title": [
+        { "command": "qflow.runFile", "when": "resourceFilename =~ /\\.(spec|test)\\.[jt]sx?$/", "group": "navigation@1" }
       ],
       "commandPalette": [
-        { "command": "qflow.openRunDetail", "when": "false" }
+        { "command": "qflow.openRunDetail",  "when": "false" },
+        { "command": "qflow.openTestSource", "when": "false" },
+        { "command": "qflow.runTest",        "when": "false" },
+        { "command": "qflow.healTest",       "when": "false" },
+        { "command": "qflow.replayRun",      "when": "false" }
       ]
     },
     "configuration": {
@@ -185,7 +130,7 @@
         "qflow.cliPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the qflow CLI binary. Leave blank to use `npx @qflow/cli` (recommended)."
+          "description": "Path to the qflow CLI binary. Leave blank to use a locally installed binary or `npx @qflow/cli`."
         },
         "qflow.defaultSuite": {
           "type": "string",
@@ -196,12 +141,34 @@
         "qflow.autoRefresh": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically refresh the test explorer after each run."
+          "description": "Automatically refresh views after each run."
         },
         "qflow.showStatusBar": {
           "type": "boolean",
           "default": true,
           "description": "Show the qflow status bar item."
+        },
+        "qflow.gutterDecorations": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show pass/fail/duration indicators in the editor gutter next to each test."
+        },
+        "qflow.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline 'Run test' / 'Heal this test' actions above each test."
+        },
+        "qflow.testFileGlob": {
+          "type": "string",
+          "default": "**/*.{spec,test}.{ts,tsx,js,jsx,mjs,cjs}",
+          "description": "Glob pattern used to discover test files for the Test Explorer and CodeLens."
+        },
+        "qflow.flakinessWindow": {
+          "type": "number",
+          "default": 20,
+          "minimum": 2,
+          "maximum": 200,
+          "description": "How many recent runs to consider when computing per-test flakiness %."
         }
       }
     }
@@ -212,9 +179,12 @@
     "typecheck": "tsc --noEmit",
     "package": "pnpm run build && vsce package --no-dependencies"
   },
+  "dependencies": {
+    "@qflow/core": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^20.14.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.21.0",
     "typescript": "^5.4.5"

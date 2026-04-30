@@ -7,7 +7,7 @@ export class QFlowDashboardPanel {
   private readonly panel: vscode.WebviewPanel;
   private readonly cwd: string;
 
-  static show(context: vscode.ExtensionContext): void {
+  static show(context: vscode.ExtensionContext, _runId?: string): void {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!root) {
       vscode.window.showErrorMessage('qflow: No workspace folder is open.');

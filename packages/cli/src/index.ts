@@ -24,7 +24,8 @@ program
 program
   .command('init')
   .description('Interactive setup wizard — generates framework.config.ts and CI workflow')
-  .action(initCommand);
+  .option('--with-vscode', 'Auto-install the qflow VS Code extension if VS Code is detected')
+  .action((opts) => initCommand({ withVSCode: Boolean(opts.withVscode ?? opts.withVSCode) }));
 
 program
   .command('run')

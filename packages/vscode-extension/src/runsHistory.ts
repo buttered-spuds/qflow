@@ -1,19 +1,17 @@
 import * as vscode from 'vscode';
-import { join } from 'path';
-import { readFileSync, existsSync } from 'fs';
-import type { Manifest, ManifestEntry, RunReport } from './testExplorer';
-
-// ─── Run history tree item ────────────────────────────────────────────────────
+import type { RunStore } from './runStore';
+import type { ManifestEntry, RunReport } from './types';
 
 export class RunTreeItem extends vscode.TreeItem {
   constructor(
     public readonly entry: ManifestEntry,
-    public readonly report?: RunReport,
+    public readonly report?: RunReport | null,
   ) {
     const label = new Date(entry.timestamp).toLocaleString();
     super(label, vscode.TreeItemCollapsibleState.Collapsed);
 
     this.contextValue = 'qflow.run';
+    this.id = entry.id;
     this.description = `${entry.passed}✓${entry.failed > 0 ? ` ${entry.failed}✗` : ''} / ${entry.total}`;
     this.tooltip = `Suite: ${entry.suite}\nRun ID: ${entry.id}`;
 
@@ -25,15 +23,9 @@ export class RunTreeItem extends vscode.TreeItem {
 }
 
 class RunTestItem extends vscode.TreeItem {
-  constructor(
-    name: string,
-    status: 'passed' | 'failed' | 'skipped' | 'flaky',
-    duration: number,
-  ) {
+  constructor(name: string, status: 'passed' | 'failed' | 'skipped' | 'flaky', duration: number) {
     super(name, vscode.TreeItemCollapsibleState.None);
-
     this.description = `${duration}ms`;
-
     switch (status) {
       case 'passed':
         this.iconPath = new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'));
@@ -51,16 +43,16 @@ class RunTestItem extends vscode.TreeItem {
   }
 }
 
-// ─── Run history tree provider ────────────────────────────────────────────────
-
 type HistoryNode = RunTreeItem | RunTestItem;
 
 export class QFlowRunsHistory implements vscode.TreeDataProvider<HistoryNode> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<HistoryNode | undefined | void>();
-  readonly onDidChangeTreeData: vscode.Event<HistoryNode | undefined | void> = this._onDidChangeTreeData.event;
+  private readonly _onDidChange = new vscode.EventEmitter<HistoryNode | undefined | void>();
+  readonly onDidChangeTreeData: vscode.Event<HistoryNode | undefined | void> = this._onDidChange.event;
+
+  constructor(private readonly store: RunStore) {}
 
   refresh(): void {
-    this._onDidChangeTreeData.fire();
+    this._onDidChange.fire();
   }
 
   getTreeItem(element: HistoryNode): vscode.TreeItem {
@@ -69,47 +61,15 @@ export class QFlowRunsHistory implements vscode.TreeDataProvider<HistoryNode> {
 
   getChildren(element?: HistoryNode): vscode.ProviderResult<HistoryNode[]> {
     if (!element) {
-      return this.getRunItems();
+      return this.store
+        .recentRuns(50)
+        .map(({ entry, report }) => new RunTreeItem(entry, report));
     }
-
     if (element instanceof RunTreeItem && element.report) {
       return element.report.tests.map(
         (t) => new RunTestItem(t.name, t.status, t.duration),
       );
     }
-
     return [];
-  }
-
-  // ─── Private helpers ───────────────────────────────────────────────────────
-
-  private getRunItems(): RunTreeItem[] {
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!root) return [];
-
-    const manifestPath = join(root, '.qflow', 'data', 'manifest.json');
-    if (!existsSync(manifestPath)) return [];
-
-    try {
-      const manifest: Manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-
-      // Show most-recent runs first, cap at 50
-      const entries = [...manifest.runs].reverse().slice(0, 50);
-
-      return entries.map((entry) => {
-        let report: RunReport | undefined;
-        const reportPath = join(root, '.qflow', 'data', entry.file);
-        if (existsSync(reportPath)) {
-          try {
-            report = JSON.parse(readFileSync(reportPath, 'utf-8')) as RunReport;
-          } catch {
-            report = undefined;
-          }
-        }
-        return new RunTreeItem(entry, report);
-      });
-    } catch {
-      return [];
-    }
   }
 }

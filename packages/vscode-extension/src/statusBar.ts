@@ -1,57 +1,50 @@
 import * as vscode from 'vscode';
-import { join } from 'path';
-import { readFileSync, existsSync } from 'fs';
-import type { Manifest, ManifestEntry, RunReport } from './testExplorer';
+import type { RunStore } from './runStore';
+import type { ManifestEntry } from './types';
 
-export class QFlowStatusBar {
+export class QFlowStatusBar implements vscode.Disposable {
   private readonly item: vscode.StatusBarItem;
 
-  constructor() {
+  constructor(private readonly store: RunStore) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.item.command = 'qflow.openDashboard';
     this.item.tooltip = 'qflow — click to open dashboard';
     this.item.text = '$(beaker) qflow';
-    this.item.show();
+
+    if (vscode.workspace.getConfiguration('qflow').get<boolean>('showStatusBar', true)) {
+      this.item.show();
+    }
   }
 
-  /** Re-read the latest run and update the status bar label. */
   refresh(): void {
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!root) {
+    if (!vscode.workspace.getConfiguration('qflow').get<boolean>('showStatusBar', true)) {
+      this.item.hide();
+      return;
+    }
+    this.item.show();
+
+    const manifest = this.store.loadManifest();
+    const latest: ManifestEntry | undefined = manifest?.runs[manifest.runs.length - 1];
+    if (!latest) {
       this.item.text = '$(beaker) qflow';
       return;
     }
 
-    const manifestPath = join(root, '.qflow', 'data', 'manifest.json');
-    if (!existsSync(manifestPath)) {
-      this.item.text = '$(beaker) qflow';
-      return;
+    if (latest.failed > 0) {
+      this.item.text = `$(error) qflow ${latest.passed}✓ ${latest.failed}✗`;
+      this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+    } else {
+      this.item.text = `$(pass) qflow ${latest.passed}✓`;
+      this.item.backgroundColor = undefined;
     }
 
-    try {
-      const manifest: Manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
-      const latest: ManifestEntry | undefined = manifest.runs[manifest.runs.length - 1];
-      if (!latest) {
-        this.item.text = '$(beaker) qflow';
-        return;
-      }
-
-      if (latest.failed > 0) {
-        this.item.text = `$(error) qflow ${latest.passed}✓ ${latest.failed}✗`;
-        this.item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-      } else {
-        this.item.text = `$(pass) qflow ${latest.passed}✓`;
-        this.item.backgroundColor = undefined;
-      }
-
-      const ago = formatRelativeTime(new Date(latest.timestamp));
-      this.item.tooltip = `qflow — last run ${ago}: ${latest.passed} passed, ${latest.failed} failed of ${latest.total}\nClick to open dashboard`;
-    } catch {
-      this.item.text = '$(beaker) qflow';
-    }
+    const ago = formatRelativeTime(new Date(latest.timestamp));
+    this.item.tooltip =
+      `qflow — last run ${ago}: ${latest.passed} passed, ${latest.failed} failed of ${latest.total}\n` +
+      `Suite: ${latest.suite}\n` +
+      'Click to open dashboard';
   }
 
-  /** Set status bar to "running" state. */
   setRunning(label: string): void {
     this.item.text = `$(loading~spin) ${label}`;
     this.item.backgroundColor = undefined;
