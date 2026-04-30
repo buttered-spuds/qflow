@@ -1,6 +1,23 @@
 {
   "name": "@qflow/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "description": "Core agents, runner adapters, LLM adapters and notification adapters for the qflow testing framework",
+  "keywords": ["testing", "playwright", "pytest", "jest", "ai", "llm", "jira", "azure-devops", "ci", "automation"],
+  "license": "MIT",
+  "author": "barrymadine",
+  "homepage": "https://github.com/buttered-spuds/qflow#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/buttered-spuds/qflow.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "exports": {
     ".": {
