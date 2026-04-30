@@ -6,43 +6,41 @@ import { randomUUID } from 'crypto';
 import type { RunnerAdapter } from './base.js';
 import type { RunnerConfig, RunOptions, RunReport, TestCase, TestStatus } from '../../types.js';
 
-// ─── Jest --json output types (partial) ──────────────────────────────────────
+// Vitest's --reporter=json output uses the same shape as Jest's --json output
+// for the fields we care about (testResults[].testResults[]).
 
-interface JestTestResult {
+interface VitestTestResult {
   fullName: string;
   status: string;
   duration?: number | null;
   failureMessages?: string[];
-  ancestorTitles?: string[];
   title?: string;
 }
 
-interface JestSuiteResult {
+interface VitestSuiteResult {
   testFilePath: string;
-  testResults: JestTestResult[];
+  testResults: VitestTestResult[];
 }
 
-interface JestReport {
+interface VitestReport {
   success: boolean;
   startTime: number;
   numPassedTests: number;
   numFailedTests: number;
   numPendingTests: number;
-  testResults: JestSuiteResult[];
+  testResults: VitestSuiteResult[];
 }
 
-// ─── Adapter ──────────────────────────────────────────────────────────────────
-
-export class JestRunner implements RunnerAdapter {
-  constructor(private readonly config: RunnerConfig = { type: 'jest' }) {}
+export class VitestRunner implements RunnerAdapter {
+  constructor(private readonly config: RunnerConfig = { type: 'vitest' }) {}
 
   async run(options: RunOptions): Promise<RunReport> {
     const { suite, cwd, env } = options;
-    const resultsPath = join(cwd, '.qflow', 'jest-results.json');
+    const resultsPath = join(cwd, '.qflow', 'vitest-results.json');
 
     mkdirSync(join(cwd, '.qflow'), { recursive: true });
 
-    const args = ['jest', '--json', `--outputFile=${resultsPath}`];
+    const args = ['vitest', 'run', '--reporter=json', `--outputFile=${resultsPath}`];
 
     if (this.config.workers !== undefined) {
       args.push(`--maxWorkers=${this.config.workers}`);
@@ -53,10 +51,12 @@ export class JestRunner implements RunnerAdapter {
     }
 
     if (suite === 'smoke') {
-      args.push('--testPathPattern=smoke');
+      args.push('--testNamePattern', 'smoke');
     }
 
     if (options.tagPattern) {
+      const idx = args.indexOf('--testNamePattern');
+      if (idx >= 0) args.splice(idx, 2);
       args.push('--testNamePattern', options.tagPattern);
     }
 
@@ -70,24 +70,24 @@ export class JestRunner implements RunnerAdapter {
       reject: false,
     });
 
-    let report: JestReport;
+    let report: VitestReport;
     try {
-      report = JSON.parse(await readFile(resultsPath, 'utf-8')) as JestReport;
+      report = JSON.parse(await readFile(resultsPath, 'utf-8')) as VitestReport;
     } catch {
-      throw new Error('Jest did not write a JSON report. Ensure jest is installed and configured.');
+      throw new Error('Vitest did not write a JSON report. Ensure vitest is installed and configured.');
     }
 
-    const tests: TestCase[] = report.testResults.flatMap((suite) =>
-      suite.testResults.map((t) => {
+    const tests: TestCase[] = report.testResults.flatMap((s) =>
+      s.testResults.map((t) => {
         const status: TestStatus =
-          t.status === 'passed' ? 'passed' : t.status === 'pending' ? 'skipped' : 'failed';
+          t.status === 'passed' ? 'passed' : t.status === 'pending' || t.status === 'skipped' ? 'skipped' : 'failed';
 
         return {
           name: t.title ?? t.fullName,
           fullName: t.fullName,
           status,
           duration: t.duration ?? 0,
-          file: suite.testFilePath,
+          file: s.testFilePath,
           error: t.failureMessages?.join('\n') || undefined,
         };
       }),
@@ -99,7 +99,7 @@ export class JestRunner implements RunnerAdapter {
       id: randomUUID(),
       timestamp: startedAt,
       suite,
-      runner: 'jest',
+      runner: 'vitest',
       passed: report.numPassedTests,
       failed: report.numFailedTests,
       skipped: report.numPendingTests,

@@ -9,12 +9,14 @@ export { AzureDevOpsAgent } from './agents/azure-devops-agent.js';
 export type { TicketAgent } from './agents/ticket-agent.js';
 export { GeneratorAgent } from './agents/generator-agent.js';
 export { ReviewerAgent } from './agents/reviewer-agent.js';
+export { RepoContextAgent } from './agents/repo-context-agent.js';
+export type { RepoContext, PageObjectSummary, FixtureSummary, TestSummary } from './agents/repo-context-agent.js';
 export { FlakinessAgent } from './agents/flakiness-agent.js';
 export { CoverageDriftAgent } from './agents/coverage-drift-agent.js';
 export { SmartSelector } from './agents/smart-selector.js';
 export { SelfHealingAgent } from './agents/self-healing-agent.js';
 export { CostLedger, trackUsage } from './utils/cost-ledger.js';
-export { createRunner, PlaywrightRunner, PytestRunner, JestRunner, CustomRunner } from './adapters/runners/index.js';
+export { createRunner, PlaywrightRunner, PytestRunner, JestRunner, VitestRunner, CustomRunner } from './adapters/runners/index.js';
 export { SlackAdapter, TeamsAdapter, JiraAdapter } from './adapters/notifications/index.js';
 export { createLLMAdapter, OpenAIAdapter, AnthropicAdapter, AzureOpenAIAdapter, GeminiAdapter, OllamaAdapter, GitHubCopilotAdapter } from './adapters/llm/index.js';
 export type { RunnerAdapter } from './adapters/runners/base.js';
@@ -42,6 +44,5 @@ export type {
   ManifestEntry,
   RunOptions,
   TestingContext,
-  UserRole,
-  TestingMode,
+  TestMode,
 } from './types.js';

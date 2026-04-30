@@ -6,6 +6,7 @@ import { AzureDevOpsAgent } from './azure-devops-agent.js';
 import type { TicketAgent } from './ticket-agent.js';
 import { GeneratorAgent } from './generator-agent.js';
 import { CoverageDriftAgent } from './coverage-drift-agent.js';
+import { RepoContextAgent } from './repo-context-agent.js';
 import { createLLMAdapter } from '../adapters/llm/index.js';
 import { CostLedger, trackUsage } from '../utils/cost-ledger.js';
 
@@ -38,10 +39,13 @@ export class Orchestrator {
   }
 
   async run(options: OrchestratorRunOptions): Promise<RunReport> {
+    const tagPattern = this.#resolveTagPattern(options.suite);
+
     const runOptions: RunOptions = {
       suite: options.suite,
       cwd: options.cwd,
       local: options.local,
+      tagPattern,
     };
 
     const report = await this.runnerAgent.run(runOptions);
@@ -52,6 +56,15 @@ export class Orchestrator {
     });
 
     return report;
+  }
+
+  /** Resolve `config.tags.<suite>` to a runner-friendly grep pattern. */
+  #resolveTagPattern(suite: string): string | undefined {
+    const tags = this.config.tags;
+    if (!tags) return undefined;
+    if (suite === 'smoke' && tags.smoke?.length) return tags.smoke.join('|');
+    if (suite === 'regression' && tags.regression?.length) return tags.regression.join('|');
+    return undefined;
   }
 
   async generate(options: OrchestratorGenerateOptions): Promise<GenerateResult> {
@@ -78,11 +91,15 @@ export class Orchestrator {
     const llm = createLLMAdapter(this.config.llm);
     const generatorAgent = new GeneratorAgent(llm);
 
+    // 0. Scan the repo so the generator/reviewer write tests that fit existing conventions.
+    const repoContext = await new RepoContextAgent().scan(options.cwd, this.config.testingContext);
+
     // 1. Generate tests (with Reviewer loop)
     const { files, review } = await generatorAgent.generate(ticket, {
       cwd: options.cwd,
       maxRetries: options.maxRetries,
       testingContext: this.config.testingContext,
+      repoContext,
     });
 
     // 2. Write files to disk

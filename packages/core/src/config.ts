@@ -6,11 +6,28 @@ import type { QFlowConfig } from './types.js';
 
 // ─── Zod schema ───────────────────────────────────────────────────────────────
 
+const EnvVarsSchema = z.record(z.string(), z.string());
+
 const RunnerConfigSchema = z.object({
-  type: z.enum(['playwright', 'pytest', 'jest', 'custom']),
+  type: z.enum(['playwright', 'pytest', 'jest', 'vitest', 'custom']),
   configFile: z.string().optional(),
   command: z.string().optional(),
   outputDir: z.string().optional(),
+  baseUrl: z.string().url().optional(),
+  workers: z.number().int().positive().optional(),
+  retries: z.number().int().min(0).max(10).optional(),
+  timeoutMs: z.number().int().positive().optional(),
+  env: EnvVarsSchema.optional(),
+});
+
+const EnvironmentProfileSchema = z.object({
+  baseUrl: z.string().url().optional(),
+  env: EnvVarsSchema.optional(),
+});
+
+const TagsConfigSchema = z.object({
+  smoke: z.array(z.string()).optional(),
+  regression: z.array(z.string()).optional(),
 });
 
 const QFlowConfigSchema = z.object({
@@ -70,11 +87,24 @@ const QFlowConfigSchema = z.object({
     .optional(),
   testingContext: z
     .object({
-      role: z.enum(['tester', 'developer']),
-      mode: z.enum(['e2e', 'unit-integration']),
+      modes: z
+        .array(z.enum(['ui', 'api', 'unit', 'component']))
+        .min(1, 'testingContext.modes must list at least one mode'),
       sourcePath: z.string().optional(),
     })
+    .superRefine((ctx, issue) => {
+      const needsSource = ctx.modes.includes('unit') || ctx.modes.includes('component');
+      if (needsSource && !ctx.sourcePath) {
+        issue.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "testingContext.sourcePath is required when modes include 'unit' or 'component'",
+          path: ['sourcePath'],
+        });
+      }
+    })
     .optional(),
+  environments: z.record(z.string(), EnvironmentProfileSchema).optional(),
+  tags: TagsConfigSchema.optional(),
 });
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
@@ -108,5 +138,39 @@ export async function loadConfig(cwd: string = process.cwd()): Promise<QFlowConf
     throw new Error(`Invalid framework.config.ts:\n${issues}`);
   }
 
-  return result.data as QFlowConfig;
+  const config = result.data as QFlowConfig;
+  interpolateEnvVars(config);
+  return config;
+}
+
+// ─── ${VAR} interpolation ─────────────────────────────────────────────────────
+
+const ENV_REF = /\$\{([A-Z0-9_]+)\}/g;
+
+function interpolateString(value: string, path: string): string {
+  return value.replace(ENV_REF, (_, name: string) => {
+    const resolved = process.env[name];
+    if (resolved === undefined) {
+      throw new Error(
+        `Invalid framework.config.ts:\n  • ${path}: references env var \${${name}} which is not set in the environment.`,
+      );
+    }
+    return resolved;
+  });
+}
+
+function interpolateRecord(record: Record<string, string> | undefined, path: string): void {
+  if (!record) return;
+  for (const [key, value] of Object.entries(record)) {
+    record[key] = interpolateString(value, `${path}.${key}`);
+  }
+}
+
+function interpolateEnvVars(config: QFlowConfig): void {
+  interpolateRecord(config.runner.env, 'runner.env');
+  if (config.environments) {
+    for (const [name, profile] of Object.entries(config.environments)) {
+      interpolateRecord(profile.env, `environments.${name}.env`);
+    }
+  }
 }

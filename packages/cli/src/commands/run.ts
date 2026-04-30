@@ -5,10 +5,11 @@ import type { RunReport } from '@qflow/core';
 interface RunOptions {
   suite: string;
   local: boolean;
+  env?: string;
 }
 
 export async function runCommand(options: RunOptions): Promise<void> {
-  const { suite, local } = options;
+  const { suite, local, env: envName } = options;
   const cwd = process.cwd();
 
   // Load and validate config
@@ -20,9 +21,22 @@ export async function runCommand(options: RunOptions): Promise<void> {
     process.exit(1);
   }
 
+  // Apply --env profile overrides on top of runner config
+  if (envName) {
+    const profile = config.environments?.[envName];
+    if (!profile) {
+      console.error(
+        chalk.red(`\n  Error: --env "${envName}" is not defined in framework.config.ts under environments.\n`),
+      );
+      process.exit(1);
+    }
+    if (profile.baseUrl) config.runner.baseUrl = profile.baseUrl;
+    if (profile.env) config.runner.env = { ...config.runner.env, ...profile.env };
+  }
+
   console.log(
     chalk.bold.cyan(`\n  qflow run`) +
-      chalk.dim(` --suite ${suite}${local ? ' --local' : ''}\n`),
+      chalk.dim(` --suite ${suite}${local ? ' --local' : ''}${envName ? ` --env ${envName}` : ''}\n`),
   );
   console.log(chalk.dim(`  Runner: ${config.runner.type}`));
   console.log(chalk.dim(`  Suite:  ${suite}\n`));

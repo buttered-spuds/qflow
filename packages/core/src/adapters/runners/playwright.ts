@@ -1,7 +1,7 @@
 import { execa } from 'execa';
 import { randomUUID } from 'crypto';
 import type { RunnerAdapter } from './base.js';
-import type { RunOptions, RunReport, TestCase } from '../../types.js';
+import type { RunnerConfig, RunOptions, RunReport, TestCase } from '../../types.js';
 
 // ─── Playwright JSON reporter types (partial) ─────────────────────────────────
 
@@ -75,28 +75,51 @@ function collectSpecs(suite: PWSuite, filePath: string = ''): TestCase[] {
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 
 export class PlaywrightRunner implements RunnerAdapter {
-  constructor(private readonly configFile?: string) {}
+  constructor(private readonly config: RunnerConfig = { type: 'playwright' }) {}
 
   async run(options: RunOptions): Promise<RunReport> {
     const { suite, cwd, env } = options;
 
     const args = ['playwright', 'test', '--reporter=json'];
 
-    if (this.configFile) {
-      args.push('--config', this.configFile);
+    if (this.config.configFile) {
+      args.push('--config', this.config.configFile);
+    }
+
+    if (this.config.workers !== undefined) {
+      args.push('--workers', String(this.config.workers));
+    }
+
+    if (this.config.retries !== undefined) {
+      args.push('--retries', String(this.config.retries));
+    }
+
+    if (this.config.timeoutMs !== undefined) {
+      args.push('--timeout', String(this.config.timeoutMs));
     }
 
     if (suite === 'smoke') {
       args.push('--grep', '@smoke');
     }
 
+    if (options.tagPattern) {
+      // Replace the default smoke filter when an explicit tag pattern is supplied.
+      const idx = args.indexOf('--grep');
+      if (idx >= 0) args.splice(idx, 2);
+      args.push('--grep', options.tagPattern);
+    }
+
     // pr-smart falls back to full run in Phase 1 (smart selection is Phase 4)
 
     const startedAt = Date.now();
 
+    const baseUrlEnv = this.config.baseUrl
+      ? { PLAYWRIGHT_BASE_URL: this.config.baseUrl, BASE_URL: this.config.baseUrl }
+      : {};
+
     const result = await execa('npx', args, {
       cwd,
-      env: { ...process.env, ...env },
+      env: { ...process.env, ...baseUrlEnv, ...this.config.env, ...env },
       reject: false,
       all: false,
     });

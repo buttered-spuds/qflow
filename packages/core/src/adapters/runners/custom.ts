@@ -1,7 +1,7 @@
 import { execa } from 'execa';
 import { randomUUID } from 'crypto';
 import type { RunnerAdapter } from './base.js';
-import type { RunOptions, RunReport } from '../../types.js';
+import type { RunnerConfig, RunOptions, RunReport } from '../../types.js';
 
 /**
  * Runs an arbitrary shell command and captures exit code + output.
@@ -9,7 +9,10 @@ import type { RunOptions, RunReport } from '../../types.js';
  * For richer results, use a native runner adapter (playwright, pytest, jest).
  */
 export class CustomRunner implements RunnerAdapter {
-  constructor(private readonly command: string) {}
+  constructor(
+    private readonly command: string,
+    private readonly config: RunnerConfig = { type: 'custom' },
+  ) {}
 
   async run(options: RunOptions): Promise<RunReport> {
     const { suite, cwd, env } = options;
@@ -17,9 +20,11 @@ export class CustomRunner implements RunnerAdapter {
     const startMs = Date.now();
 
     const [cmd, ...args] = this.command.split(' ');
+    const baseUrlEnv = this.config.baseUrl ? { BASE_URL: this.config.baseUrl } : {};
+
     const result = await execa(cmd, args, {
       cwd,
-      env: { ...process.env, ...env },
+      env: { ...process.env, ...baseUrlEnv, ...this.config.env, ...env },
       reject: false,
     });
 

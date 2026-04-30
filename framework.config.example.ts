@@ -4,17 +4,42 @@ const config: QFlowConfig = {
   runner: {
     type: 'playwright',
     configFile: 'playwright.config.ts',
+    // Optional knobs forwarded to the runner (env vars + CLI flags):
+    // baseUrl: 'http://localhost:3000',
+    // workers: 4,
+    // retries: 2,
+    // timeoutMs: 30_000,
+    // env: {
+    //   API_TOKEN: '${CI_API_TOKEN}',  // ${VAR} is interpolated at config-load
+    // },
   },
 
-  // ── Who is using this framework and what kind of tests ───────────────────
-  // role:  'tester'  → QA Engineer writing E2E tests for features built by others
-  //        'developer' → Developer writing unit/integration tests alongside source code
-  // mode:  'e2e'              → UI & API end-to-end tests (Playwright, pytest)
-  //        'unit-integration' → Unit & integration tests that mirror source file structure
+  // Named environment profiles applied with `qflow run --env staging`
+  // environments: {
+  //   staging: {
+  //     baseUrl: 'https://staging.example.com',
+  //     env: { FEATURE_X: 'on' },
+  //   },
+  //   prod: {
+  //     baseUrl: 'https://www.example.com',
+  //   },
+  // },
+
+  // Tag groups used by `qflow run --suite smoke|regression`
+  // tags: {
+  //   smoke: ['@smoke', '@critical'],
+  //   regression: ['@regression'],
+  // },
+
+  // ── What kinds of tests this framework will manage ──────────────────────
+  // Multi-select. Drives file structure, naming, locator strategy, mocking.
+  // - 'ui'        : End-to-end browser tests (Playwright + POM + accessible locators)
+  // - 'api'       : HTTP/service tests against a running app (no browser)
+  // - 'unit'      : In-process tests with mocked deps; mirror sourcePath
+  // - 'component' : Isolated UI component tests
   testingContext: {
-    role: 'tester',
-    mode: 'e2e',
-    // sourcePath: 'src',  // required when mode is 'unit-integration'
+    modes: ['ui', 'api'],
+    // sourcePath: 'src',  // required when modes include 'unit' or 'component'
   },
 
   // ── Ticket system: pick ONE ──────────────────────────────────────────────

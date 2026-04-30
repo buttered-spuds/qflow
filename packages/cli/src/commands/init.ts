@@ -4,55 +4,61 @@ import { writeFile, mkdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-const PHASE_NOTE = '(can be added later)';
-
 export async function initCommand(): Promise<void> {
   console.log(chalk.bold.cyan('\n  qflow init\n'));
   console.log('This wizard will create framework.config.ts in the current directory.\n');
 
   const cwd = process.cwd();
 
-  // ─── Role & testing mode ────────────────────────────────────────────────────
+  // ─── Sanity check: must be inside a project ────────────────────────────────
 
-  const userRole = await select({
-    message: 'What best describes you?',
-    choices: [
-      { name: 'QA Engineer / Tester  — I write tests for features built by others', value: 'tester' },
-      { name: 'Developer  — I write tests alongside the code I am developing', value: 'developer' },
-    ],
-  });
+  let hasPackageJson = false;
+  try { await access(join(cwd, 'package.json')); hasPackageJson = true; } catch {}
+  if (!hasPackageJson) {
+    console.log(chalk.yellow('  ⚠ No package.json found in this directory.'));
+    const proceed = await confirm({
+      message: 'qflow works best inside an existing project. Continue anyway?',
+      default: false,
+    });
+    if (!proceed) {
+      console.log(chalk.dim('\n  Aborted. Run `npm init -y` first, then re-run `qflow init`.\n'));
+      return;
+    }
+  }
 
-  const testingMode = await select({
-    message: 'What kind of tests will this framework manage?',
+  // ─── What kinds of tests? ──────────────────────────────────────────────────
+
+  let modes = await checkbox<string>({
+    message: 'What kinds of tests will this framework manage? (space to toggle, enter to confirm)',
     choices: [
-      {
-        name: 'End-to-end  — UI and API tests that validate the full application (Playwright, pytest)',
-        value: 'e2e',
-      },
-      {
-        name: 'Unit & Integration  — tests that live beside source code and run in CI with the build',
-        value: 'unit-integration',
-      },
+      { name: 'UI         — End-to-end browser tests (Playwright + POM)',                value: 'ui',        checked: true },
+      { name: 'API        — HTTP/service tests against a running app (no browser)',      value: 'api',       checked: true },
+      { name: 'Unit       — In-process tests with mocked deps; mirror source structure', value: 'unit' },
+      { name: 'Component  — Isolated UI component tests',                                value: 'component' },
     ],
+    validate: (vals) => vals.length > 0 || 'Pick at least one.',
   });
 
   let sourcePath = 'src';
-  if (testingMode === 'unit-integration') {
+  if (modes.includes('unit') || modes.includes('component')) {
     sourcePath = await input({
-      message: 'Where is your source code? (relative path — used to mirror file structure in tests)',
-      default: 'src',
+      message: 'Where is your source code? (relative path — tests mirror this structure)',
+      default: await detectSourcePath(cwd),
     });
   }
 
   // ─── Runner ────────────────────────────────────────────────────────────────
 
+  const detectedRunner = await detectRunner(cwd, modes);
   const runnerType = await select({
     message: 'Which test runner does this project use?',
+    default: detectedRunner,
     choices: [
-      { name: 'Playwright (UI + API)', value: 'playwright' },
-      { name: 'pytest', value: 'pytest' },
-      { name: 'Jest', value: 'jest' },
-      { name: 'Custom command', value: 'custom' },
+      { name: 'Playwright  (UI + API end-to-end)', value: 'playwright' },
+      { name: 'Jest        (unit / integration)',  value: 'jest' },
+      { name: 'Vitest      (unit / integration)',  value: 'vitest' },
+      { name: 'pytest      (Python)',              value: 'pytest' },
+      { name: 'Custom command',                    value: 'custom' },
     ],
   });
 
@@ -60,10 +66,17 @@ export async function initCommand(): Promise<void> {
   let runnerCommand: string | undefined;
 
   if (runnerType === 'playwright') {
-    runnerConfigFile = await input({
-      message: 'Playwright config file path:',
-      default: 'playwright.config.ts',
-    });
+    // Auto-detect Playwright config; only ask if it's not where we expect.
+    const detectedConfig = await detectPlaywrightConfig(cwd);
+    if (detectedConfig) {
+      runnerConfigFile = detectedConfig;
+      console.log(chalk.dim(`  Using detected Playwright config: ${detectedConfig}`));
+    } else {
+      runnerConfigFile = await input({
+        message: 'Playwright config file path:',
+        default: 'playwright.config.ts',
+      });
+    }
   }
 
   if (runnerType === 'custom') {
@@ -74,12 +87,13 @@ export async function initCommand(): Promise<void> {
 
   // ─── Ticket system ─────────────────────────────────────────────────────────
 
+  console.log(chalk.dim('  ℹ A ticket system is required if you want to use `qflow generate --ticket` or coverage-check.'));
   const ticketSystem = await select({
-    message: `Ticket system: ${PHASE_NOTE}`,
+    message: 'Ticket system:',
     choices: [
       { name: 'JIRA Cloud / Server', value: 'jira' },
-      { name: 'Azure DevOps', value: 'azure-devops' },
-      { name: 'None', value: 'none' },
+      { name: 'Azure DevOps',        value: 'azure-devops' },
+      { name: 'None  — I will use --description for ad-hoc generation', value: 'none' },
     ],
   });
 
@@ -102,9 +116,10 @@ export async function initCommand(): Promise<void> {
 
   // ─── LLM ───────────────────────────────────────────────────────────────────
 
+  console.log(chalk.dim('  ℹ An LLM is required for the AI features (generate, review, self-heal). Skip only if you want to use qflow purely as a runner/reporter.'));
   const configureLlm = await confirm({
-    message: `Configure LLM provider for AI features? ${PHASE_NOTE}`,
-    default: false,
+    message: 'Configure an LLM provider?',
+    default: true,
   });
 
   let llmProvider = '';
@@ -114,7 +129,7 @@ export async function initCommand(): Promise<void> {
     llmProvider = await select({
       message: 'LLM provider:',
       choices: [
-        { name: 'GitHub Copilot  (uses GITHUB_TOKEN — no extra API key needed)', value: 'github-copilot' },
+        { name: 'GitHub Copilot  (uses GITHUB_TOKEN — free in GitHub Actions)', value: 'github-copilot' },
         { name: 'OpenAI', value: 'openai' },
         { name: 'Anthropic (Claude)', value: 'anthropic' },
         { name: 'Azure OpenAI', value: 'azure' },
@@ -125,9 +140,9 @@ export async function initCommand(): Promise<void> {
     });
 
     const defaultModel: Record<string, string> = {
-      'github-copilot': 'gpt-4o',
+      'github-copilot': 'claude-sonnet-4.6',
       openai: 'gpt-4o',
-      anthropic: 'claude-opus-4-5',
+      anthropic: 'claude-sonnet-4-5',
       azure: 'gpt-4o',
       gemini: 'gemini-1.5-pro',
       ollama: 'llama3.2',
@@ -143,7 +158,7 @@ export async function initCommand(): Promise<void> {
   // ─── Notifications ─────────────────────────────────────────────────────────
 
   const notificationTargets = await checkbox({
-    message: `Notification channels: ${PHASE_NOTE}`,
+    message: 'Notification channels (you can add these later by editing framework.config.ts):',
     choices: [
       { name: 'Slack', value: 'slack' },
       { name: 'Microsoft Teams', value: 'teams' },
@@ -176,7 +191,7 @@ export async function initCommand(): Promise<void> {
   // ─── Write framework.config.ts ─────────────────────────────────────────────
 
   const configPath = join(cwd, 'framework.config.ts');
-  await writeFile(configPath, buildConfig({ userRole, testingMode, sourcePath, runnerType, runnerConfigFile, runnerCommand, jiraUrl, jiraProject, adoOrgUrl, adoProject, llmProvider, llmModel, notificationTargets, configureDashboard, dashboardBranch }), 'utf-8');
+  await writeFile(configPath, buildConfig({ modes, sourcePath, runnerType, runnerConfigFile, runnerCommand, jiraUrl, jiraProject, adoOrgUrl, adoProject, llmProvider, llmModel, notificationTargets, configureDashboard, dashboardBranch }), 'utf-8');
   console.log(chalk.green(`\n  ✓ Created framework.config.ts`));
 
   // ─── Create .qflow/ dir ────────────────────────────────────────────────────
@@ -195,6 +210,7 @@ export async function initCommand(): Promise<void> {
 
   if (runnerType === 'playwright') devDeps.push('@playwright/test');
   if (runnerType === 'jest') devDeps.push('jest', '@types/jest', 'ts-jest');
+  if (runnerType === 'vitest') devDeps.push('vitest');
 
   console.log(chalk.dim(`  Installing ${devDeps.join(', ')}...`));
   try {
@@ -249,13 +265,21 @@ export async function initCommand(): Promise<void> {
   }
 
   console.log('\n  Run tests:\n    npx @qflow/cli run\n');
+
+  // ─── Mini-doctor (quick local sanity check) ────────────────────────────────
+  console.log(chalk.dim('  Running quick health check...\n'));
+  try {
+    const { doctorCommand } = await import('./doctor.js');
+    await doctorCommand({ quick: true });
+  } catch (err) {
+    console.log(chalk.yellow(`  ⚠ Health check could not run: ${err instanceof Error ? err.message : String(err)}`));
+  }
 }
 
 // ─── Config file template ─────────────────────────────────────────────────────
 
 interface ConfigOptions {
-  userRole: string;
-  testingMode: string;
+  modes: string[];
   sourcePath: string;
   runnerType: string;
   runnerConfigFile?: string;
@@ -291,12 +315,12 @@ function buildConfig(opts: ConfigOptions): string {
   lines.push(`  },`);
 
   // testingContext
+  const needsSource = opts.modes.includes('unit') || opts.modes.includes('component');
   lines.push(
     ``,
     `  testingContext: {`,
-    `    role: '${opts.userRole}',`,
-    `    mode: '${opts.testingMode}',`,
-    ...(opts.testingMode === 'unit-integration' ? [`    sourcePath: '${opts.sourcePath}',`] : []),
+    `    modes: [${opts.modes.map((m) => `'${m}'`).join(', ')}],`,
+    ...(needsSource ? [`    sourcePath: '${opts.sourcePath}',`] : []),
     `  },`,
   );
 
@@ -413,12 +437,36 @@ async function appendGitignore(cwd: string): Promise<void> {
 async function writeWorkflow(cwd: string, runnerType: string): Promise<void> {
   await mkdir(join(cwd, '.github', 'workflows'), { recursive: true });
 
-  const browserStep =
-    runnerType === 'playwright'
-      ? `
+  const isPlaywright = runnerType === 'playwright';
+
+  const browserCacheStep = isPlaywright
+    ? `
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(node -e "console.log(require('@playwright/test/package.json').version)")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-\${{ runner.os }}-\${{ steps.pw-version.outputs.version }}
+
       - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps`
-      : '';
+    : '';
+
+  const reportArtifactStep = isPlaywright
+    ? `
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14`
+    : '';
 
   const workflow = `name: qflow tests
 
@@ -426,13 +474,22 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # qflow needs git history for PR-smart selection
 
       - uses: actions/setup-node@v4
         with:
@@ -441,16 +498,103 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-${browserStep}
+${browserCacheStep}
       - name: Run tests
+        id: qflow
         run: npx @qflow/cli run --suite \${{ github.event_name == 'pull_request' && 'pr-smart' || 'regression' }}
         env:
           QFLOW_JIRA_TOKEN: \${{ secrets.QFLOW_JIRA_TOKEN }}
           QFLOW_JIRA_URL: \${{ secrets.QFLOW_JIRA_URL }}
           QFLOW_LLM_API_KEY: \${{ secrets.QFLOW_LLM_API_KEY }}
-          QFLOW_SLACK_WEBHOOK: \${{ secrets.QFLOW_SLACK_WEBHOOK }}
-          QFLOW_TEAMS_WEBHOOK: \${{ secrets.QFLOW_TEAMS_WEBHOOK }}
+          # Notifications only fire when the secret is set; safe to leave blank locally
+          QFLOW_SLACK_WEBHOOK: \${{ github.event_name != 'workflow_dispatch' && secrets.QFLOW_SLACK_WEBHOOK || '' }}
+          QFLOW_TEAMS_WEBHOOK: \${{ github.event_name != 'workflow_dispatch' && secrets.QFLOW_TEAMS_WEBHOOK || '' }}
+          GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload qflow run data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qflow-data
+          path: .qflow/data/
+          retention-days: 30
+${reportArtifactStep}
+
+      - name: Comment results on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const dir = '.qflow/data';
+            if (!fs.existsSync(dir)) return;
+            const files = fs.readdirSync(dir).filter(f => f.endsWith('.json')).sort();
+            const latest = files[files.length - 1];
+            if (!latest) return;
+            const report = JSON.parse(fs.readFileSync(path.join(dir, latest), 'utf-8'));
+            const total = report.total ?? (report.passed + report.failed + report.skipped);
+            const status = report.failed > 0 ? '❌ Failed' : '✅ Passed';
+            const failingList = (report.tests ?? [])
+              .filter(t => t.status === 'failed')
+              .slice(0, 10)
+              .map(t => \`- \\\`\${t.fullName ?? t.name}\\\`\`)
+              .join('\\n') || '_(none)_';
+            const body = [
+              \`### qflow — \${status}\`,
+              '',
+              \`| Passed | Failed | Skipped | Total | Duration |\`,
+              \`| ---: | ---: | ---: | ---: | ---: |\`,
+              \`| \${report.passed} | \${report.failed} | \${report.skipped} | \${total} | \${Math.round((report.duration ?? 0) / 1000)}s |\`,
+              '',
+              '<details><summary>Failing tests</summary>',
+              '',
+              failingList,
+              '',
+              '</details>',
+              '',
+              \`_Run id: \\\`\${report.id}\\\`_\`,
+            ].join('\\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
 `;
 
   await writeFile(join(cwd, '.github', 'workflows', 'qflow-test.yml'), workflow, 'utf-8');
+}
+
+// ─── Auto-detection helpers ──────────────────────────────────────────────────
+
+async function detectSourcePath(cwd: string): Promise<string> {
+  for (const candidate of ['src', 'lib', 'app', 'source']) {
+    try { await access(join(cwd, candidate)); return candidate; } catch {}
+  }
+  return 'src';
+}
+
+async function detectPlaywrightConfig(cwd: string): Promise<string | undefined> {
+  for (const f of ['playwright.config.ts', 'playwright.config.js', 'playwright.config.mjs']) {
+    try { await access(join(cwd, f)); return f; } catch {}
+  }
+  return undefined;
+}
+
+async function detectRunner(cwd: string, modes: string[]): Promise<string> {
+  // Inspect package.json deps for a strong signal first.
+  try {
+    const pkgRaw = await readFile(join(cwd, 'package.json'), 'utf-8');
+    const pkg = JSON.parse(pkgRaw) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
+    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+    if (deps['@playwright/test']) return 'playwright';
+    if (deps['vitest']) return 'vitest';
+    if (deps['jest']) return 'jest';
+  } catch {}
+
+  // Fall back to mode-based guess.
+  if (modes.includes('ui') || modes.includes('api')) return 'playwright';
+  if (modes.includes('unit') || modes.includes('component')) return 'vitest';
+  return 'playwright';
 }

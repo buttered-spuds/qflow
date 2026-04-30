@@ -1,11 +1,12 @@
 import type { TestingContext } from '../types.js';
+import type { RepoContext } from './repo-context-agent.js';
 
 export interface GeneratedTestFile {
   /** Relative path the file should be written to, e.g. tests/ui/PROJ-123-login.spec.ts */
   path: string;
   content: string;
-  /** 'ui' for Playwright browser tests, 'api' for request-only tests, 'unit' for unit/integration tests */
-  testType: 'ui' | 'api' | 'unit';
+  /** What kind of test this is — used to pick file conventions and reviewer rules. */
+  testType: 'ui' | 'api' | 'unit' | 'component';
 }
 
 export interface ReviewResult {
@@ -24,4 +25,6 @@ export interface GenerateOptions {
   maxRetries?: number;
   /** Controls which conventions the generator and reviewer apply. */
   testingContext?: TestingContext;
+  /** Existing project context (POMs, fixtures, examples) for the generator and reviewer to honour. */
+  repoContext?: RepoContext;
 }

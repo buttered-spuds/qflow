@@ -4,7 +4,7 @@ import { join } from 'path';
 import { mkdirSync } from 'fs';
 import { randomUUID } from 'crypto';
 import type { RunnerAdapter } from './base.js';
-import type { RunOptions, RunReport, TestCase, TestStatus } from '../../types.js';
+import type { RunnerConfig, RunOptions, RunReport, TestCase, TestStatus } from '../../types.js';
 
 // ─── pytest-json-report types (partial) ──────────────────────────────────────
 
@@ -26,6 +26,8 @@ interface PytestReport {
 // ─── Adapter ──────────────────────────────────────────────────────────────────
 
 export class PytestRunner implements RunnerAdapter {
+  constructor(private readonly config: RunnerConfig = { type: 'pytest' }) {}
+
   async run(options: RunOptions): Promise<RunReport> {
     const { suite, cwd, env } = options;
     const resultsPath = join(cwd, '.qflow', 'pytest-results.json');
@@ -38,15 +40,33 @@ export class PytestRunner implements RunnerAdapter {
       `--json-report-file=${resultsPath}`,
     ];
 
+    if (this.config.workers !== undefined) {
+      // requires pytest-xdist
+      args.push('-n', String(this.config.workers));
+    }
+
+    if (this.config.timeoutMs !== undefined) {
+      // requires pytest-timeout; pytest expects seconds
+      args.push(`--timeout=${Math.ceil(this.config.timeoutMs / 1000)}`);
+    }
+
     if (suite === 'smoke') {
       args.push('-m', 'smoke');
     }
 
+    if (options.tagPattern) {
+      const idx = args.indexOf('-m');
+      if (idx >= 0) args.splice(idx, 2);
+      args.push('-m', options.tagPattern);
+    }
+
     const startedAt = new Date().toISOString();
+
+    const baseUrlEnv = this.config.baseUrl ? { BASE_URL: this.config.baseUrl } : {};
 
     await execa('pytest', args, {
       cwd,
-      env: { ...process.env, ...env },
+      env: { ...process.env, ...baseUrlEnv, ...this.config.env, ...env },
       reject: false,
     });
 
