@@ -26,9 +26,9 @@ On load, the SPA fetches `data/manifest.json` and lazy-loads individual run file
 | Page | Content |
 |---|---|
 | **Runs** | History of every test run — suite, runner, pass/fail count, duration, branch, commit. Expandable per-test results table. |
-| **Flakiness** | Tests with intermittent failures and their quarantine status. _(Phase 4)_ |
-| **Coverage Drift** | JIRA "Done" stories without matching test files. _(Phase 4)_ |
-| **Costs** | LLM token usage per agent, per run, monthly total. _(Phase 3)_ |
+| **Flakiness** | Tests with intermittent failures and their quarantine status. |
+| **Coverage Drift** | JIRA/Azure DevOps "Done" stories without matching test files. |
+| **Costs** | LLM token usage per agent, per run, monthly total. |
 
 ---
 

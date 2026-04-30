@@ -114,9 +114,9 @@ For local runs, create a `.env` file (gitignored) with the same variable names.
 |---|---|---|
 | **1** | CLI, runner adapters (Playwright/pytest/Jest/custom), local dashboard | ✅ Complete |
 | **2** | Reporter Agent — Slack/Teams/JIRA notifications, GitHub Pages publishing | ✅ Complete |
-| **3** | JIRA Agent, Generator Agent, Reviewer Agent — Draft PRs from JIRA tickets | 🔄 In progress |
-| **4** | Smart test selection, flakiness detection, coverage drift alerts | Planned |
-| **5** | Self-healing Playwright selectors, LLM cost tracking | Planned |
+| **3** | JIRA/Azure DevOps agents, all LLM providers, Generator Agent, Reviewer Agent, Draft PRs | ✅ Complete |
+| **4** | Smart test selection, flakiness detection, coverage drift alerts | ✅ Complete |
+| **5** | Self-healing Playwright selectors, LLM cost tracking, Gemini + Ollama adapters | ✅ Complete |
 
 ---
 

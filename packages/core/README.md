@@ -12,11 +12,17 @@ src/
 ├── config.ts                   Config file loader (Zod-validated)
 ├── agents/
 │   ├── orchestrator.ts         Coordinates all other agents
+│   ├── ticket-agent.ts         TicketAgent interface (JIRA + Azure DevOps)
 │   ├── runner-agent.ts         Thin wrapper — calls the runner adapter
 │   ├── reporter-agent.ts       Persists results, fires notifications, publishes to gh-pages
-│   ├── jira-agent.ts           Reads/writes JIRA (Phase 3)
-│   ├── generator-agent.ts      LLM → test files (Phase 3)
-│   └── reviewer-agent.ts       LLM quality scoring (Phase 3)
+│   ├── jira-agent.ts           Reads/writes JIRA tickets
+│   ├── azure-devops-agent.ts   Reads/writes Azure DevOps work items
+│   ├── generator-agent.ts      LLM → test files, opens Draft PR
+│   ├── reviewer-agent.ts       LLM quality scoring before commit
+│   ├── flakiness-agent.ts      Detects flaky tests, manages quarantine list
+│   ├── coverage-drift-agent.ts Ticket system → test corpus coverage check
+│   ├── smart-selector.ts       Git diff → minimal test subset selection
+│   └── self-healing-agent.ts   Detects broken locators, proposes LLM replacements
 ├── adapters/
 │   ├── runners/
 │   │   ├── base.ts             RunnerAdapter interface
@@ -27,9 +33,13 @@ src/
 │   │   └── index.ts            createRunner() factory
 │   ├── llm/
 │   │   ├── base.ts             LLMAdapter interface + types
-│   │   ├── openai.ts           OpenAI adapter (Phase 3)
-│   │   ├── anthropic.ts        Anthropic adapter (Phase 3)
-│   │   └── azure.ts            Azure OpenAI adapter (Phase 3)
+│   │   ├── openai.ts           OpenAI adapter
+│   │   ├── anthropic.ts        Anthropic (Claude) adapter
+│   │   ├── azure.ts            Azure OpenAI adapter
+│   │   ├── gemini.ts           Google Gemini REST adapter
+│   │   ├── ollama.ts           Ollama local adapter (extends OpenAI)
+│   │   ├── github-copilot.ts   GitHub Copilot adapter (uses GITHUB_TOKEN)
+│   │   └── index.ts            createLLMAdapter() factory
 │   └── notifications/
 │       ├── base.ts             NotificationAdapter interface
 │       ├── slack.ts            Slack Block Kit webhook
@@ -37,7 +47,8 @@ src/
 │       ├── jira.ts             JIRA ADF comment via REST API
 │       └── index.ts            Barrel export
 └── utils/
-    └── gh-pages-publisher.ts   git worktree-based gh-pages commit + retry
+    ├── gh-pages-publisher.ts   git worktree-based gh-pages commit + retry
+    └── cost-ledger.ts          JSONL append-only LLM token usage ledger
 ```
 
 ---
@@ -49,13 +60,15 @@ The shape of `framework.config.ts`. Validated at load time via Zod.
 
 ```ts
 interface QFlowConfig {
-  runner: RunnerConfig;       // required
+  runner: RunnerConfig;          // required
   jira?: JiraConfig;
+  azureDevOps?: AzureDevOpsConfig;
   llm?: LLMConfig;
   notifications?: NotificationsConfig;
   dashboard?: DashboardConfig;
   flakiness?: FlakinessConfig;
   smartSelection?: SmartSelectionConfig;
+  selfHealing?: SelfHealingConfig;
 }
 ```
 

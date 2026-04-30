@@ -41,8 +41,8 @@ Behaviour:
 
 ---
 
-### `qflow generate --ticket <key>` _(Phase 3)_
-Generates Playwright/API tests from a JIRA ticket's acceptance criteria and opens a Draft PR.
+### `qflow generate --ticket <key>`
+Generates Playwright/API tests from a JIRA or Azure DevOps ticket's acceptance criteria and opens a Draft PR.
 
 ---
 
@@ -51,18 +51,18 @@ Starts a local HTTP server (default port `3000`) that serves the dashboard SPA r
 
 ---
 
-### `qflow costs` _(Phase 3)_
+### `qflow costs`
 Prints LLM token usage and estimated cost per agent, per run, and monthly total.
 
 ---
 
-### `qflow flakiness` _(Phase 4)_
+### `qflow flakiness`
 Prints current flakiness stats and quarantine status for all tracked tests.
 
 ---
 
-### `qflow coverage-check` _(Phase 4)_
-Checks JIRA "Done" user stories against test files. Reports stories that shipped without tests.
+### `qflow coverage-check`
+Checks JIRA or Azure DevOps "Done" user stories against test files. Reports stories that shipped without tests.
 
 ---
 
@@ -74,11 +74,11 @@ src/
 └── commands/
     ├── init.ts            Interactive wizard + file generation
     ├── run.ts             Orchestrator invocation + result printer
-    ├── generate.ts        Phase 3 stub
+    ├── generate.ts        LLM test generation from JIRA/ADO ticket
     ├── dashboard.ts       Local dashboard server + /api/manifest endpoint
-    ├── costs.ts           Phase 3 stub (shows run summary until LLM agents active)
-    ├── flakiness.ts       Phase 4 stub
-    └── coverage-check.ts  Phase 4 stub
+    ├── costs.ts           LLM token usage + cost summary
+    ├── flakiness.ts       Flakiness stats + quarantine status
+    └── coverage-check.ts  Ticket coverage drift report
 ```
 
 ---
