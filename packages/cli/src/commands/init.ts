@@ -2,6 +2,7 @@ import { select, input, password, confirm, checkbox } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { writeFile, mkdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
 const PHASE_NOTE = '(can be added later)';
 
@@ -156,6 +157,25 @@ export async function initCommand(): Promise<void> {
   await appendGitignore(cwd);
   console.log(chalk.green('  ✓ Updated .gitignore'));
 
+  // ─── Install @qflow/core in the target project ─────────────────────────────
+
+  console.log(chalk.dim('  Installing @qflow/core...'));
+  try {
+    // detect package manager
+    let pm = 'npm';
+    try { await access(join(cwd, 'pnpm-lock.yaml')); pm = 'pnpm'; } catch {}
+    try { await access(join(cwd, 'yarn.lock')); pm = 'yarn'; } catch {}
+    const installArgs = pm === 'npm'
+      ? 'install --save-dev @qflow/core'
+      : pm === 'pnpm'
+        ? 'add -D @qflow/core'
+        : 'add --dev @qflow/core';
+    execSync(`${pm} ${installArgs}`, { cwd, stdio: 'inherit' });
+    console.log(chalk.green('  ✓ Installed @qflow/core'));
+  } catch {
+    console.log(chalk.yellow('  ⚠ Could not auto-install @qflow/core. Run: npm install --save-dev @qflow/core'));
+  }
+
   // ─── GitHub Actions workflow ───────────────────────────────────────────────
 
   if (generateWorkflow) {
@@ -185,7 +205,7 @@ export async function initCommand(): Promise<void> {
     console.log(chalk.dim('    QFLOW_TEAMS_WEBHOOK'));
   }
 
-  console.log('\n  Run tests:\n    npx qflow run\n');
+  console.log('\n  Run tests:\n    npx @qflow/cli run\n');
 }
 
 // ─── Config file template ─────────────────────────────────────────────────────
@@ -367,7 +387,7 @@ jobs:
         run: npm ci
 ${browserStep}
       - name: Run tests
-        run: npx qflow run --suite \${{ github.event_name == 'pull_request' && 'pr-smart' || 'regression' }}
+        run: npx @qflow/cli run --suite \${{ github.event_name == 'pull_request' && 'pr-smart' || 'regression' }}
         env:
           QFLOW_JIRA_TOKEN: \${{ secrets.QFLOW_JIRA_TOKEN }}
           QFLOW_JIRA_URL: \${{ secrets.QFLOW_JIRA_URL }}

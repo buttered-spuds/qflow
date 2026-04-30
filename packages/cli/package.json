@@ -1,6 +1,6 @@
 {
   "name": "@qflow/cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "CLI for qflow — AI-orchestrated plug-and-play testing framework",
   "keywords": [
     "testing",
