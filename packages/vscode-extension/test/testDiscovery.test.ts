@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { Uri } from './_vscode-stub';
+import { describe, it, expect, vi } from 'vitest';
+import type { Uri as VscodeUri } from 'vscode';
 import { discoverTestsInFile } from '../src/testDiscovery';
 import { writeFileSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-// Stub `vscode` module — testDiscovery only uses Uri (passed in by caller).
-import { vi } from 'vitest';
-vi.mock('vscode', () => ({ Uri: { file: (p: string) => ({ fsPath: p }) } }), { virtual: true } as any);
+vi.mock('vscode', () => ({ Uri: { file: (p: string) => ({ fsPath: p, scheme: 'file', authority: '', path: p, query: '', fragment: '' }) } }));
+
+const mockUri = (p: string): VscodeUri => ({ fsPath: p, scheme: 'file', authority: '', path: p, query: '', fragment: '', with: () => ({} as VscodeUri), toJSON: () => ({}) } as unknown as VscodeUri);
 
 function tmpFile(content: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'qflow-disc-'));
@@ -22,7 +22,7 @@ describe('testDiscovery', () => {
       test('foo', () => {});
       it("bar", () => {});
     `);
-    const tests = discoverTestsInFile(Uri.file(f), 'sample.spec.ts');
+    const tests = discoverTestsInFile(mockUri(f), 'sample.spec.ts');
     expect(tests.map((t) => t.name).sort()).toEqual(['bar', 'foo']);
   });
 
@@ -35,7 +35,7 @@ describe('testDiscovery', () => {
         });
       });
     `);
-    const tests = discoverTestsInFile(Uri.file(f), 'x.spec.ts');
+    const tests = discoverTestsInFile(mockUri(f), 'x.spec.ts');
     const fullNames = tests.map((t) => t.fullName).sort();
     expect(fullNames).toContain('Login > redirects');
     expect(fullNames).toContain('Login > errors > shows banner');
@@ -47,7 +47,7 @@ describe('testDiscovery', () => {
       /* test('also not me', () => {}); */
       test('only me', () => {});
     `);
-    const tests = discoverTestsInFile(Uri.file(f), 'x.spec.ts');
+    const tests = discoverTestsInFile(mockUri(f), 'x.spec.ts');
     expect(tests.map((t) => t.name)).toEqual(['only me']);
   });
 });

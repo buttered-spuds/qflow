@@ -40,8 +40,7 @@
     "onLanguage:typescript",
     "onLanguage:javascript",
     "onLanguage:typescriptreact",
-    "onLanguage:javascriptreact",
-    "onCommand:qflow.run"
+    "onLanguage:javascriptreact"
   ],
   "main": "./dist/extension.js",
   "contributes": {
