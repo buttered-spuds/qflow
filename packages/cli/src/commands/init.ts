@@ -12,6 +12,38 @@ export async function initCommand(): Promise<void> {
 
   const cwd = process.cwd();
 
+  // ─── Role & testing mode ────────────────────────────────────────────────────
+
+  const userRole = await select({
+    message: 'What best describes you?',
+    choices: [
+      { name: 'QA Engineer / Tester  — I write tests for features built by others', value: 'tester' },
+      { name: 'Developer  — I write tests alongside the code I am developing', value: 'developer' },
+    ],
+  });
+
+  const testingMode = await select({
+    message: 'What kind of tests will this framework manage?',
+    choices: [
+      {
+        name: 'End-to-end  — UI and API tests that validate the full application (Playwright, pytest)',
+        value: 'e2e',
+      },
+      {
+        name: 'Unit & Integration  — tests that live beside source code and run in CI with the build',
+        value: 'unit-integration',
+      },
+    ],
+  });
+
+  let sourcePath = 'src';
+  if (testingMode === 'unit-integration') {
+    sourcePath = await input({
+      message: 'Where is your source code? (relative path — used to mirror file structure in tests)',
+      default: 'src',
+    });
+  }
+
   // ─── Runner ────────────────────────────────────────────────────────────────
 
   const runnerType = await select({
@@ -144,7 +176,7 @@ export async function initCommand(): Promise<void> {
   // ─── Write framework.config.ts ─────────────────────────────────────────────
 
   const configPath = join(cwd, 'framework.config.ts');
-  await writeFile(configPath, buildConfig({ runnerType, runnerConfigFile, runnerCommand, jiraUrl, jiraProject, adoOrgUrl, adoProject, llmProvider, llmModel, notificationTargets, configureDashboard, dashboardBranch }), 'utf-8');
+  await writeFile(configPath, buildConfig({ userRole, testingMode, sourcePath, runnerType, runnerConfigFile, runnerCommand, jiraUrl, jiraProject, adoOrgUrl, adoProject, llmProvider, llmModel, notificationTargets, configureDashboard, dashboardBranch }), 'utf-8');
   console.log(chalk.green(`\n  ✓ Created framework.config.ts`));
 
   // ─── Create .qflow/ dir ────────────────────────────────────────────────────
@@ -222,6 +254,9 @@ export async function initCommand(): Promise<void> {
 // ─── Config file template ─────────────────────────────────────────────────────
 
 interface ConfigOptions {
+  userRole: string;
+  testingMode: string;
+  sourcePath: string;
   runnerType: string;
   runnerConfigFile?: string;
   runnerCommand?: string;
@@ -254,6 +289,16 @@ function buildConfig(opts: ConfigOptions): string {
   }
 
   lines.push(`  },`);
+
+  // testingContext
+  lines.push(
+    ``,
+    `  testingContext: {`,
+    `    role: '${opts.userRole}',`,
+    `    mode: '${opts.testingMode}',`,
+    ...(opts.testingMode === 'unit-integration' ? [`    sourcePath: '${opts.sourcePath}',`] : []),
+    `  },`,
+  );
 
   if (opts.jiraUrl) {
     lines.push(

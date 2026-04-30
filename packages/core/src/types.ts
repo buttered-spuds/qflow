@@ -1,7 +1,33 @@
+// ─── Testing context ─────────────────────────────────────────────────────────
+
+/** Who is using qflow and what kind of tests they are writing. */
+export type UserRole = 'tester' | 'developer';
+
+/** E2E browser/API tests vs unit/integration tests that mirror source code. */
+export type TestingMode = 'e2e' | 'unit-integration';
+
+export interface TestingContext {
+  /** Whether the person configuring the framework is primarily a QA/tester or a developer. */
+  role: UserRole;
+  /** The category of tests being generated. Drives naming conventions, patterns, and selectors. */
+  mode: TestingMode;
+  /**
+   * For unit-integration mode: the relative path to the source files that tests should mirror.
+   * e.g. 'src' → src/services/user.ts becomes tests/unit/services/user.test.ts
+   */
+  sourcePath?: string;
+}
+
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 export interface QFlowConfig {
   runner: RunnerConfig;
+  /**
+   * Describes who is using the framework and what testing mode they are in.
+   * Controls how tests are generated (POM + accessible locators for E2E;
+   * mirror-source structure + describe/it naming for unit/integration).
+   */
+  testingContext?: TestingContext;
   /** JIRA Cloud / Server ticket system. Mutually exclusive with azureDevOps. */
   jira?: JiraConfig;
   /** Azure DevOps ticket system. Mutually exclusive with jira. */
@@ -77,6 +103,8 @@ export interface SelfHealingConfig {
   /** If true, auto-commit the healed selector back to the same branch. Defaults to false. */
   autoCommit?: boolean;
 }
+
+export type { UserRole as QFlowUserRole, TestingMode as QFlowTestingMode };
 
 // ─── Cost tracking ────────────────────────────────────────────────────────────
 

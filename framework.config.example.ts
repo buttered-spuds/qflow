@@ -6,6 +6,17 @@ const config: QFlowConfig = {
     configFile: 'playwright.config.ts',
   },
 
+  // ── Who is using this framework and what kind of tests ───────────────────
+  // role:  'tester'  → QA Engineer writing E2E tests for features built by others
+  //        'developer' → Developer writing unit/integration tests alongside source code
+  // mode:  'e2e'              → UI & API end-to-end tests (Playwright, pytest)
+  //        'unit-integration' → Unit & integration tests that mirror source file structure
+  testingContext: {
+    role: 'tester',
+    mode: 'e2e',
+    // sourcePath: 'src',  // required when mode is 'unit-integration'
+  },
+
   // ── Ticket system: pick ONE ──────────────────────────────────────────────
 
   // Option A: JIRA Cloud / Server

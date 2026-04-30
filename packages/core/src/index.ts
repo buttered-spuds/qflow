@@ -41,4 +41,7 @@ export type {
   Manifest,
   ManifestEntry,
   RunOptions,
+  TestingContext,
+  UserRole,
+  TestingMode,
 } from './types.js';

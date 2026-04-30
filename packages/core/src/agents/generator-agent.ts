@@ -4,6 +4,7 @@ import { execa } from 'execa';
 import type { LLMAdapter } from '../adapters/llm/base.js';
 import type { JiraTicket } from './jira-agent.types.js';
 import type { GeneratedTestFile, GenerateOptions, ReviewResult } from './generator-agent.types.js';
+import type { TestingContext } from '../types.js';
 import { ReviewerAgent } from './reviewer-agent.js';
 
 export class GeneratorAgent {
@@ -22,15 +23,16 @@ export class GeneratorAgent {
     opts: GenerateOptions,
   ): Promise<{ files: GeneratedTestFile[]; review: ReviewResult }> {
     const maxRetries = opts.maxRetries ?? 2;
-    let files = await this.#generateFiles(ticket);
-    let review = await this.reviewer.review(ticket, files);
+    const ctx = opts.testingContext;
+    let files = await this.#generateFiles(ticket, ctx);
+    let review = await this.reviewer.review(ticket, files, ctx);
 
     for (let attempt = 1; attempt < maxRetries && !review.approved; attempt++) {
       console.log(
         `[qflow] Reviewer score ${review.score}/10 — regenerating (attempt ${attempt + 1}/${maxRetries})`,
       );
-      files = await this.#generateFiles(ticket, review);
-      review = await this.reviewer.review(ticket, files);
+      files = await this.#generateFiles(ticket, ctx, review);
+      review = await this.reviewer.review(ticket, files, ctx);
     }
 
     return { files, review };
@@ -90,16 +92,17 @@ export class GeneratorAgent {
 
   async #generateFiles(
     ticket: JiraTicket,
+    context?: TestingContext,
     previousReview?: ReviewResult,
   ): Promise<GeneratedTestFile[]> {
     const needsUI = !ticket.labels.includes('api-only');
     const needsAPI = ticket.labels.includes('api') || ticket.labels.includes('api-only');
 
     const response = await this.llm.chat([
-      { role: 'system', content: GENERATOR_SYSTEM_PROMPT },
+      { role: 'system', content: buildSystemPrompt(context) },
       {
         role: 'user',
-        content: buildGeneratorPrompt(ticket, { needsUI, needsAPI, previousReview }),
+        content: buildGeneratorPrompt(ticket, { needsUI, needsAPI, previousReview, context }),
       },
     ]);
 
@@ -180,33 +183,79 @@ async function getDefaultBranch(cwd: string): Promise<string> {
 
 // ─── Prompts ──────────────────────────────────────────────────────────────────
 
-const GENERATOR_SYSTEM_PROMPT = `You are an expert QA engineer writing Playwright test files.
+function buildSystemPrompt(context?: TestingContext): string {
+  const mode = context?.mode ?? 'e2e';
+
+  if (mode === 'unit-integration') {
+    const sourcePath = context?.sourcePath ?? 'src';
+    return `You are an expert ${context?.role === 'developer' ? 'developer' : 'QA engineer'} writing unit and integration tests.
+
+Rules:
+- Write TypeScript using Jest (@types/jest + ts-jest)
+- Mirror the source file structure: ${sourcePath}/services/user.ts → tests/unit/services/user.test.ts
+- Use a top-level describe('<ModuleName>') block per file
+- Use nested describe('<functionName>') blocks for each exported function or method under test
+- Inside each function describe, write it('should <behaviour>') tests
+- Import the actual module under test using a relative path
+- Mock external dependencies (databases, HTTP clients, third-party modules) with jest.mock() at the top of the file
+- Clean up mocks in afterEach/afterAll where needed
+- Test the happy path AND at least one error or edge case per function
+- Assert on return values, thrown errors, or observable side-effects — never on internal implementation details
+- Keep each test focused on a single scenario
+
+Respond ONLY with a JSON array of file objects. No markdown, no explanation.
+Format: [{"path": "tests/unit/...", "testType": "unit", "content": "...full file content..."}]`;
+  }
+
+  // Default: E2E mode
+  return `You are an expert QA engineer writing Playwright end-to-end test files.
 
 Rules:
 - Write TypeScript using @playwright/test
-- Use only role-based, label-based, or data-testid selectors — never nth-child or auto-generated class names
+- ALWAYS use the Page Object Model (POM). Each page or UI component under test gets its own class in tests/pages/. Tests import these classes — never interact with the page directly from a test file.
+- Use accessible-first locators in this strict priority order:
+    1. page.getByRole()       — prefer for interactive elements (button, link, textbox, etc.)
+    2. page.getByLabel()      — for form fields with a visible label
+    3. page.getByPlaceholder() — for inputs with placeholder text only
+    4. page.getByText()       — for non-interactive text content
+    5. page.getByTestId()     — only when no accessible selector is available
+  Never use nth-child, CSS class selectors, auto-generated attributes, or XPath.
 - Each test must directly verify a specific acceptance criterion
 - Tag smoke tests with @smoke in the test name
-- UI tests go in tests/ui/, API tests in tests/api/
-- Use Playwright's request context for API tests (no browser)
-- Never use hardcoded timeouts — use waitFor or expect with auto-retry
+- UI tests go in tests/ui/, API tests in tests/api/, Page Object classes in tests/pages/
+- Use Playwright's APIRequestContext for API tests (no browser)
+- Never use hardcoded timeouts — use await expect().toBeVisible() with auto-retry
 - Keep tests independent — no shared state between tests
 
 Respond ONLY with a JSON array of file objects. No markdown, no explanation.
-Format: [{"path": "tests/ui/...", "testType": "ui"|"api", "content": "...full file content..."}]`;
+Format: [{"path": "tests/ui/...", "testType": "ui"|"api", "content": "...full file content..."}]
+Include POM files in the array alongside test files (use testType: "ui" for page object files).`;
+}
 
 function buildGeneratorPrompt(
   ticket: JiraTicket,
-  opts: { needsUI: boolean; needsAPI: boolean; previousReview?: ReviewResult },
+  opts: { needsUI: boolean; needsAPI: boolean; previousReview?: ReviewResult; context?: TestingContext },
 ): string {
+  const isUnit = opts.context?.mode === 'unit-integration';
+
   const parts = [
     `Ticket: ${ticket.key} — ${ticket.summary}`,
     ``,
     `Acceptance Criteria:`,
     ticket.acceptanceCriteria || ticket.description,
     ``,
-    `Generate: ${[opts.needsUI && 'UI tests', opts.needsAPI && 'API tests'].filter(Boolean).join(' and ')}`,
   ];
+
+  if (isUnit) {
+    parts.push(`Generate unit/integration tests that cover the behaviour described above.`);
+    if (opts.context?.sourcePath) {
+      parts.push(`Source path to mirror: ${opts.context.sourcePath}`);
+    }
+  } else {
+    parts.push(
+      `Generate: ${[opts.needsUI && 'UI tests (with POM classes)', opts.needsAPI && 'API tests'].filter(Boolean).join(' and ')}`,
+    );
+  }
 
   if (opts.previousReview) {
     parts.push(

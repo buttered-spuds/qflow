@@ -82,6 +82,7 @@ export class Orchestrator {
     const { files, review } = await generatorAgent.generate(ticket, {
       cwd: options.cwd,
       maxRetries: options.maxRetries,
+      testingContext: this.config.testingContext,
     });
 
     // 2. Write files to disk

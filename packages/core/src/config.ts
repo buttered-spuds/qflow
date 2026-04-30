@@ -68,6 +68,13 @@ const QFlowConfigSchema = z.object({
       autoCommit: z.boolean().optional(),
     })
     .optional(),
+  testingContext: z
+    .object({
+      role: z.enum(['tester', 'developer']),
+      mode: z.enum(['e2e', 'unit-integration']),
+      sourcePath: z.string().optional(),
+    })
+    .optional(),
 });
 
 // ─── Loader ───────────────────────────────────────────────────────────────────
