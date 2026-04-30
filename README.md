@@ -91,6 +91,12 @@ Add these as GitHub Actions secrets (Settings → Secrets and variables → Acti
 | `QFLOW_TEAMS_WEBHOOK` | Microsoft Teams incoming webhook URL |
 
 > **GitHub Copilot users:** set `provider: 'github-copilot'` and `apiKey: process.env.GITHUB_TOKEN ?? ''` in `framework.config.ts`. `GITHUB_TOKEN` is injected automatically by GitHub Actions — no extra secret required.
+>
+> **Running locally?** Add this to your `~/.zshrc` (macOS/Linux) once — it pulls the token from your existing `gh` CLI login:
+> ```bash
+> export GITHUB_TOKEN=$(gh auth token)
+> ```
+> Then run `source ~/.zshrc`. After that, `GITHUB_TOKEN` is always set in every terminal session.
 
 > **Install globally** to use `qflow` as a direct command: `npm install -g @qflow/cli`
 
