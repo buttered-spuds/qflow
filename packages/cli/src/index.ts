@@ -28,8 +28,9 @@ program
 
 program
   .command('generate')
-  .description('Generate tests from a JIRA ticket (Phase 3)')
-  .requiredOption('-t, --ticket <key>', 'JIRA ticket key, e.g. PROJ-123')
+  .description('Generate tests from a JIRA ticket or a free-text description')
+  .option('-t, --ticket <key>', 'JIRA/ADO ticket key, e.g. PROJ-123')
+  .option('-d, --description <text>', 'Free-text description (no ticket system required)')
   .action(generateCommand);
 
 program

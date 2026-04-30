@@ -63,28 +63,40 @@ export class Orchestrator {
       throw new Error('llm config is required for npx qflow generate. Add it to framework.config.ts.');
     }
 
+    const ticket = await ticketAgent.getTicket(options.ticketKey);
+    return this.generateFromTicket(ticket, options);
+  }
+
+  async generateFromTicket(
+    ticket: import('./jira-agent.types.js').JiraTicket,
+    options: Omit<OrchestratorGenerateOptions, 'ticketKey'>,
+  ): Promise<GenerateResult> {
+    if (!this.config.llm) {
+      throw new Error('llm config is required for generate. Add it to framework.config.ts.');
+    }
+
     const llm = createLLMAdapter(this.config.llm);
     const generatorAgent = new GeneratorAgent(llm);
 
-    // 1. Fetch ticket + ACs
-    const ticket = await ticketAgent.getTicket(options.ticketKey);
-
-    // 2. Generate tests (with Reviewer loop)
+    // 1. Generate tests (with Reviewer loop)
     const { files, review } = await generatorAgent.generate(ticket, {
       cwd: options.cwd,
       maxRetries: options.maxRetries,
     });
 
-    // 3. Write files to disk
+    // 2. Write files to disk
     await generatorAgent.writeFiles(files, options.cwd);
 
-    // 4. Commit + open Draft PR
+    // 3. Commit + open Draft PR
     const prUrl = await generatorAgent.openDraftPR(files, ticket, review, options.cwd);
 
-    // 5. Update ticket with PR link
-    await ticketAgent.addComment(ticket.key, buildTicketComment(prUrl, review));
+    // 4. Update ticket with PR link (only if a ticket system is configured)
+    const ticketAgent = this.#resolveTicketAgent();
+    if (ticketAgent) {
+      await ticketAgent.addComment(ticket.key, buildTicketComment(prUrl, review));
+    }
 
-    // 6. Record LLM cost
+    // 5. Record LLM cost
     const ledger = new CostLedger(options.cwd);
     await ledger.open();
     await trackUsage(ledger, llm.getLastUsage(), 'generate', this.config.llm.provider, this.config.llm.model);

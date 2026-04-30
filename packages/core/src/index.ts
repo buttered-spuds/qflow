@@ -21,6 +21,7 @@ export type { RunnerAdapter } from './adapters/runners/base.js';
 export type { LLMAdapter, ChatMessage, Tool, ToolCallResult, TokenUsage } from './adapters/llm/base.js';
 export type { NotificationAdapter } from './adapters/notifications/base.js';
 export type { TokenUsageRecord, SelfHealingConfig } from './types.js';
+export type { JiraTicket, JiraSearchResult } from './agents/jira-agent.types.js';
 export type { HealedSelector, SelfHealResult } from './agents/self-healing-agent.js';
 export type { SmartSelectionResult } from './agents/smart-selector.js';
 export type { FlakinessResult } from './agents/flakiness-agent.js';
