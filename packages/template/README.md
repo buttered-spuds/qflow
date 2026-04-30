@@ -2,6 +2,8 @@
 
 Starter project for greenfield repos using qflow. Clone or copy this directory to bootstrap a new project with Playwright UI + API testing and qflow configured out of the box.
 
+> **Already in a repo?** You don't need this template \u2014 just run `npx @qflow/cli init` in your project root. The wizard auto-detects your test runner, generates `framework.config.ts` + a CI workflow, and runs `qflow doctor` at the end.
+
 ---
 
 ## What's included

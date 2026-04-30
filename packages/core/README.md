@@ -9,7 +9,7 @@ The core library for qflow. Contains all agents, runner adapters, notification a
 ```
 src/
 ├── types.ts                    All shared TypeScript types
-├── config.ts                   Config file loader (Zod-validated)
+├── config.ts                   Config file loader (Zod-validated, ${VAR} interpolation)
 ├── agents/
 │   ├── orchestrator.ts         Coordinates all other agents
 │   ├── ticket-agent.ts         TicketAgent interface (JIRA + Azure DevOps)
@@ -17,8 +17,9 @@ src/
 │   ├── reporter-agent.ts       Persists results, fires notifications, publishes to gh-pages
 │   ├── jira-agent.ts           Reads/writes JIRA tickets
 │   ├── azure-devops-agent.ts   Reads/writes Azure DevOps work items
-│   ├── generator-agent.ts      LLM → test files, opens Draft PR
-│   ├── reviewer-agent.ts       LLM quality scoring before commit
+│   ├── repo-context-agent.ts   Scans existing POMs, fixtures, examples — feeds Generator + Reviewer
+│   ├── generator-agent.ts      LLM → test files (UI / API / unit / component), opens Draft PR
+│   ├── reviewer-agent.ts       LLM quality scoring; docks score for duplicating existing helpers
 │   ├── flakiness-agent.ts      Detects flaky tests, manages quarantine list
 │   ├── coverage-drift-agent.ts Ticket system → test corpus coverage check
 │   ├── smart-selector.ts       Git diff → minimal test subset selection
@@ -29,8 +30,9 @@ src/
 │   │   ├── playwright.ts       Playwright JSON reporter parser
 │   │   ├── pytest.ts           pytest-json-report parser
 │   │   ├── jest.ts             Jest --json parser
+│   │   ├── vitest.ts           Vitest --reporter=json parser
 │   │   ├── custom.ts           Arbitrary shell command wrapper
-│   │   └── index.ts            createRunner() factory
+│   │   └── index.ts            createRunner() factory (forwards baseUrl/workers/retries/timeout/env)
 │   ├── llm/
 │   │   ├── base.ts             LLMAdapter interface + types
 │   │   ├── openai.ts           OpenAI adapter
@@ -56,11 +58,12 @@ src/
 ## Key types
 
 ### `QFlowConfig`
-The shape of `framework.config.ts`. Validated at load time via Zod.
+The shape of `framework.config.ts`. Validated at load time via Zod. Any `${VAR}` references inside `runner.env` or `environments.*.env` are interpolated from `process.env` at load time and throw if unset.
 
 ```ts
 interface QFlowConfig {
   runner: RunnerConfig;          // required
+  testingContext?: TestingContext;
   jira?: JiraConfig;
   azureDevOps?: AzureDevOpsConfig;
   llm?: LLMConfig;
@@ -69,6 +72,25 @@ interface QFlowConfig {
   flakiness?: FlakinessConfig;
   smartSelection?: SmartSelectionConfig;
   selfHealing?: SelfHealingConfig;
+  environments?: Record<string, EnvironmentProfile>;  // applied via `qflow run --env <name>`
+  tags?: TagsConfig;                                  // grep patterns for smoke / regression
+}
+
+interface TestingContext {
+  modes: Array<'ui' | 'api' | 'unit' | 'component'>;  // multi-select
+  sourcePath?: string;  // required when modes include 'unit' or 'component'
+}
+
+interface RunnerConfig {
+  type: 'playwright' | 'pytest' | 'jest' | 'vitest' | 'custom';
+  configFile?: string;
+  command?: string;       // required for 'custom'
+  outputDir?: string;
+  baseUrl?: string;       // PLAYWRIGHT_BASE_URL / BASE_URL
+  workers?: number;
+  retries?: number;
+  timeoutMs?: number;
+  env?: Record<string, string>;  // ${VAR} interpolated at load
 }
 ```
 
@@ -116,10 +138,13 @@ interface NotificationAdapter {
 ## Agents
 
 ### Orchestrator
-Entry point for all `qflow run` and `qflow generate` calls. Wires agents together.
+Entry point for all `qflow run` and `qflow generate` calls. Wires agents together. Resolves `tags.<suite>` to a runner-friendly grep pattern before invoking the Runner Agent.
+
+### Repo Context Agent
+Scans the consuming project for existing Page Object classes, fixtures / factories, example tests (per mode), pinned runner version, and `tsconfig.json` path aliases. Returns a structured `RepoContext` that the Generator and Reviewer embed in their LLM prompts so generated tests fit the project's existing conventions instead of duplicating them.
 
 ### Runner Agent
-Calls the configured `RunnerAdapter`. Returns a `RunReport`. Does not handle environment setup — that is the responsibility of scripts in the consuming repo.
+Calls the configured `RunnerAdapter`. Returns a `RunReport`. Forwards `runner.{baseUrl, workers, retries, timeoutMs, env}` and the resolved `tagPattern` from the Orchestrator. Does not handle environment setup — that is the responsibility of scripts in the consuming repo.
 
 ### Reporter Agent
 1. Always writes the `RunReport` to `.qflow/data/run-{timestamp}.json`
@@ -191,4 +216,13 @@ export class PagerDutyAdapter implements NotificationAdapter {
 pnpm build      # compile to dist/
 pnpm typecheck  # type-check without emitting
 pnpm dev        # watch mode
+```
+
+## Tests
+
+Run from the workspace root — vitest is configured at the root and picks up every `packages/*/test/**/*.test.ts` file:
+
+```bash
+pnpm test         # one-shot
+pnpm test:watch   # interactive
 ```
