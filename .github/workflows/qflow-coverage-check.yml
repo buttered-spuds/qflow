@@ -1,9 +1,9 @@
-name: qflow coverage check
+# This is the EXAMPLE workflow that `qflow init` generates for consumer projects.
+# It is kept here for reference and is intentionally NOT scheduled inside the
+# qflow repo itself (the actual CI for this repo lives in ci.yml).
+name: qflow coverage check (example)
 
 on:
-  schedule:
-    # Every Monday at 08:00 UTC
-    - cron: '0 8 * * 1'
   workflow_dispatch:
 
 jobs:

@@ -1,9 +1,10 @@
-name: qflow tests
+# This is the EXAMPLE workflow that `qflow init` generates for consumer projects.
+# It is kept here for reference and is intentionally NOT triggered on push/PR
+# inside the qflow repo itself (the actual CI for this repo lives in ci.yml).
+name: qflow tests (example)
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 # Required for gh-pages publishing and creating Draft PRs (Phase 3)
 permissions:

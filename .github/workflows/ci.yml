@@ -41,11 +41,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type-check
-        run: pnpm -r typecheck
-
+      # Build first so @qflow/core's dist/ types exist for @qflow/cli's typecheck.
       - name: Build
         run: pnpm -r build
+
+      - name: Type-check
+        run: pnpm -r typecheck
 
       - name: Run tests (vitest)
         run: pnpm test
