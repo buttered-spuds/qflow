@@ -36,10 +36,10 @@ On load, the SPA fetches `data/manifest.json` and lazy-loads individual run file
 
 ```bash
 # Start the local dashboard server (reads .qflow/data/)
-npx qflow dashboard
+npx @qflow/cli dashboard
 
 # Optional: specify a port
-npx qflow dashboard --port 4000
+npx @qflow/cli dashboard --port 4000
 ```
 
 The local server also exposes `/api/manifest` which returns all locally saved run data. The SPA tries this endpoint first; if it fails (no local server), it falls back to fetching static files from the GitHub Pages URL.

@@ -26,16 +26,16 @@ JIRA ticket (acceptance criteria)
 
 ```bash
 # Drop into an existing project
-npx qflow init
+npx @qflow/cli init
 
 # Run tests
-npx qflow run
+npx @qflow/cli run
 
-# Generate tests from a JIRA ticket (Phase 3)
-npx qflow generate --ticket PROJ-123
+# Generate tests from a JIRA ticket
+npx @qflow/cli generate --ticket PROJ-123
 
 # View local dashboard
-npx qflow dashboard
+npx @qflow/cli dashboard
 ```
 
 ---
@@ -46,7 +46,7 @@ npx qflow dashboard
 test-framework/
 ├── packages/
 │   ├── core/        @qflow/core — agents, runner adapters, notification adapters
-│   ├── cli/         @qflow/cli  — npx qflow binary
+│   ├── cli/         @qflow/cli  — npx @qflow/cli binary
 │   └── template/    Starter project for greenfield repos
 ├── dashboard/       Static SPA deployed to GitHub Pages
 └── .github/
@@ -61,22 +61,22 @@ test-framework/
 
 | Command | Description |
 |---|---|
-| `npx qflow init` | Interactive setup wizard — creates `framework.config.ts` and GitHub Actions workflow |
-| `npx qflow run` | Run the test suite (default suite: `regression`) |
-| `npx qflow run --suite smoke` | Run only `@smoke` tagged tests |
-| `npx qflow run --suite pr-smart` | Smart test selection based on PR diff (Phase 4) |
-| `npx qflow run --local` | Run tests with no notifications or publishing |
-| `npx qflow generate --ticket PROJ-123` | Generate tests from JIRA acceptance criteria (Phase 3) |
-| `npx qflow dashboard` | Local dashboard server at `localhost:3000` |
-| `npx qflow costs` | LLM token usage and cost summary (Phase 3) |
-| `npx qflow flakiness` | Flakiness and quarantine status (Phase 4) |
-| `npx qflow coverage-check` | JIRA coverage drift report (Phase 4) |
+| `npx @qflow/cli init` | Interactive setup wizard — creates `framework.config.ts` and GitHub Actions workflow |
+| `npx @qflow/cli run` | Run the test suite (default suite: `regression`) |
+| `npx @qflow/cli run --suite smoke` | Run only `@smoke` tagged tests |
+| `npx @qflow/cli run --suite pr-smart` | Smart test selection based on PR diff |
+| `npx @qflow/cli run --local` | Run tests with no notifications or publishing |
+| `npx @qflow/cli generate --ticket PROJ-123` | Generate tests from JIRA acceptance criteria |
+| `npx @qflow/cli dashboard` | Local dashboard server at `localhost:3000` |
+| `npx @qflow/cli costs` | LLM token usage and cost summary |
+| `npx @qflow/cli flakiness` | Flakiness and quarantine status |
+| `npx @qflow/cli coverage-check` | JIRA coverage drift report |
 
 ---
 
 ## Configuration
 
-All configuration lives in a single `framework.config.ts` at the root of your project. Run `npx qflow init` to generate it interactively, or copy [`framework.config.example.ts`](./framework.config.example.ts).
+All configuration lives in a single `framework.config.ts` at the root of your project. Run `npx @qflow/cli init` to generate it interactively, or copy [`framework.config.example.ts`](./framework.config.example.ts).
 
 ### Required secrets
 
@@ -92,6 +92,8 @@ Add these as GitHub Actions secrets (Settings → Secrets and variables → Acti
 
 > **GitHub Copilot users:** set `provider: 'github-copilot'` and `apiKey: process.env.GITHUB_TOKEN ?? ''` in `framework.config.ts`. `GITHUB_TOKEN` is injected automatically by GitHub Actions — no extra secret required.
 
+> **Install globally** to use `qflow` as a direct command: `npm install -g @qflow/cli`
+
 For local runs, create a `.env` file (gitignored) with the same variable names.
 
 ---
@@ -103,7 +105,7 @@ For local runs, create a `.env` file (gitignored) with the same variable names.
 | Test runners | Playwright, pytest, Jest, custom command |
 | LLM providers | OpenAI, Anthropic (Claude), Azure OpenAI, Google Gemini, Ollama (local), **GitHub Copilot** (uses `GITHUB_TOKEN`), custom |
 | Notifications | Slack, Microsoft Teams, JIRA |
-| CI/CD | GitHub Actions (first-class), any platform via `npx qflow run` |
+| CI/CD | GitHub Actions (first-class), any platform via `npx @qflow/cli run` |
 | Dashboard | GitHub Pages (primary), local server (fallback) |
 
 ---

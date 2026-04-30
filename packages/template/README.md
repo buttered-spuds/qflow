@@ -36,7 +36,7 @@ npm install
 npm run test:local
 
 # Or with full qflow output
-npx qflow run
+npx @qflow/cli run
 ```
 
 ---
@@ -45,9 +45,9 @@ npx qflow run
 
 | Script | Description |
 |---|---|
-| `npm test` | `npx qflow run` — full run with notifications |
-| `npm run test:smoke` | `npx qflow run --suite smoke` — @smoke tagged tests only |
-| `npm run test:local` | `npx qflow run --local` — offline, no notifications |
+| `npm test` | `npx @qflow/cli run` — full run with notifications |
+| `npm run test:smoke` | `npx @qflow/cli run --suite smoke` — @smoke tagged tests only |
+| `npm run test:local` | `npx @qflow/cli run --local` — offline, no notifications |
 
 ---
 
