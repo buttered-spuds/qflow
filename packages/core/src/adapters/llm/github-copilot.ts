@@ -12,7 +12,9 @@ import type { LLMAdapter } from './base.js';
  * API key needs to be configured.
  *
  * Available models (as of 2026):
- *   gpt-4o, gpt-4o-mini, claude-3.5-sonnet, o1-mini, o3-mini
+ *   gpt-4o, gpt-4.1, gpt-5-mini, gpt-5.4,
+ *   claude-sonnet-4-5, claude-sonnet-4-6, claude-haiku-4-5,
+ *   gemini-2.5-pro, grok-code-fast-1
  *
  * Usage in framework.config.ts:
  *   llm: {
