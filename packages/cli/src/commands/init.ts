@@ -4,11 +4,9 @@ import { writeFile, mkdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-export interface InitOptions {
-  withVSCode?: boolean;
-}
+export interface InitOptions {}
 
-export async function initCommand(opts: InitOptions = {}): Promise<void> {
+export async function initCommand(_opts: InitOptions = {}): Promise<void> {
   console.log(chalk.bold.cyan('\n  qflow init\n'));
   console.log('This wizard will create framework.config.ts in the current directory.\n');
 
@@ -272,7 +270,7 @@ export async function initCommand(opts: InitOptions = {}): Promise<void> {
 
   // ─── VS Code extension ─────────────────────────────────────────────────────
 
-  await maybeInstallVSCodeExtension(opts.withVSCode === true);
+  await maybeInstallVSCodeExtension();
 
   // ─── Mini-doctor (quick local sanity check) ────────────────────────────────
   console.log(chalk.dim('  Running quick health check...\n'));
@@ -286,7 +284,7 @@ export async function initCommand(opts: InitOptions = {}): Promise<void> {
 
 // ─── VS Code extension installer ─────────────────────────────────────────────
 
-async function maybeInstallVSCodeExtension(optedIn: boolean): Promise<void> {
+async function maybeInstallVSCodeExtension(): Promise<void> {
   // Detect VS Code terminal via common environment markers.
   const isVSCode =
     process.env.TERM_PROGRAM === 'vscode' ||
@@ -295,19 +293,6 @@ async function maybeInstallVSCodeExtension(optedIn: boolean): Promise<void> {
     Boolean(process.env.VSCODE_INJECTION);
 
   if (!isVSCode) return;
-
-  // Until the extension is published to the Marketplace, only run the install
-  // flow when the user explicitly passes `--with-vscode`. Otherwise just nudge.
-  if (!optedIn) {
-    console.log(chalk.bold.cyan('\n  VS Code detected.'));
-    console.log(
-      chalk.dim(
-        '  A qflow VS Code extension is in development. Re-run `qflow init --with-vscode`\n' +
-        '  once it ships to the Marketplace, or install manually from the Extensions panel.\n',
-      ),
-    );
-    return;
-  }
 
   // Check whether the `code` CLI is available.
   let codeCliAvailable = false;

@@ -3,7 +3,7 @@ import { spawn } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-export class RunnerService {
+export class RunnerService implements vscode.Disposable {
   private readonly channel: vscode.OutputChannel;
 
   constructor() {
@@ -62,6 +62,10 @@ export class RunnerService {
     this.channel.show();
   }
 
+  dispose(): void {
+    this.channel.dispose();
+  }
+
   getWorkspaceRoot(): string | undefined {
     return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   }
@@ -76,7 +80,11 @@ export class RunnerService {
     }
 
     // Prefer a locally installed binary inside the project.
-    const localBin = join(cwd, 'node_modules', '.bin', 'qflow');
+    // On Windows the shim is `qflow.cmd`; on POSIX it is just `qflow`.
+    const binDir = join(cwd, 'node_modules', '.bin');
+    const localBin = process.platform === 'win32'
+      ? join(binDir, 'qflow.cmd')
+      : join(binDir, 'qflow');
     if (existsSync(localBin)) {
       return { cmd: localBin, cmdArgs: args };
     }

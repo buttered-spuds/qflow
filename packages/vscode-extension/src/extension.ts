@@ -54,6 +54,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // ─── Refresh on file changes ──────────────────────────────────────────────
 
   const refreshAll = (): void => {
+    if (!vscode.workspace.getConfiguration('qflow').get<boolean>('autoRefresh', true)) return;
     store.invalidate();
     testExplorer.refresh();
     runsHistory.refresh();
@@ -99,6 +100,7 @@ export function activate(context: vscode.ExtensionContext): void {
     runsHistoryView,
     flakinessTreeView,
     dataWatcher,
+    runner,
     statusBar,
     decorations,
     testController,

@@ -157,7 +157,6 @@ function buildAfterText(result: TestCase | undefined, flaky: FlakinessStat | und
 
 function buildHover(result: TestCase | undefined, flaky: FlakinessStat | undefined): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
-  md.isTrusted = true;
   if (result) {
     md.appendMarkdown(`**${result.status.toUpperCase()}** — ${result.duration}ms\n\n`);
     if (result.error) {

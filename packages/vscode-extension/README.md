@@ -18,11 +18,11 @@ A VS Code extension for the [qflow](https://github.com/buttered-spuds/qflow) AI-
 
 - [qflow](https://github.com/buttered-spuds/qflow) must be set up in your workspace (`framework.config.ts` must exist or `.qflow/` directory present).
 - Node.js 18+.
-- VS Code 1.85.0+ (released November 2023 — required for the `TreeView`, `WebviewPanel`, and `FileSystemWatcher` APIs used by this extension).
+- VS Code 1.90.0+ (released June 2024 — minimum version required by this extension).
 
 ## Getting Started
 
-If you used `npx @qflow/cli init` to set up qflow, the extension is installed automatically when VS Code is detected.
+`npx @qflow/cli init` automatically detects VS Code (via `TERM_PROGRAM`, `VSCODE_PID`, or similar markers) and prompts you to install the extension before finishing setup.
 
 Otherwise, search for **qflow** in the VS Code Extensions marketplace and click **Install**.
 

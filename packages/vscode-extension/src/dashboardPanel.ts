@@ -6,8 +6,9 @@ export class QFlowDashboardPanel {
   private static currentPanel: QFlowDashboardPanel | undefined;
   private readonly panel: vscode.WebviewPanel;
   private readonly cwd: string;
+  private focusRunId: string | undefined;
 
-  static show(context: vscode.ExtensionContext, _runId?: string): void {
+  static show(context: vscode.ExtensionContext, focusRunId?: string): void {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!root) {
       vscode.window.showErrorMessage('qflow: No workspace folder is open.');
@@ -16,6 +17,9 @@ export class QFlowDashboardPanel {
 
     if (QFlowDashboardPanel.currentPanel) {
       QFlowDashboardPanel.currentPanel.panel.reveal();
+      if (focusRunId) {
+        QFlowDashboardPanel.currentPanel.setFocus(focusRunId);
+      }
       return;
     }
 
@@ -24,19 +28,20 @@ export class QFlowDashboardPanel {
       'qflow Dashboard',
       vscode.ViewColumn.Beside,
       {
-        enableScripts: true,
+        enableScripts: false,
         localResourceRoots: [
           vscode.Uri.file(join(root, '.qflow', 'data')),
         ],
       },
     );
 
-    QFlowDashboardPanel.currentPanel = new QFlowDashboardPanel(panel, root);
+    QFlowDashboardPanel.currentPanel = new QFlowDashboardPanel(panel, root, focusRunId);
   }
 
-  private constructor(panel: vscode.WebviewPanel, cwd: string) {
+  private constructor(panel: vscode.WebviewPanel, cwd: string, focusRunId?: string) {
     this.panel = panel;
     this.cwd = cwd;
+    this.focusRunId = focusRunId;
 
     this.render();
 
@@ -55,6 +60,12 @@ export class QFlowDashboardPanel {
 
   private render(): void {
     this.panel.webview.html = this.buildHtml();
+  }
+
+  /** Update the focused run id and re-render. */
+  private setFocus(runId: string): void {
+    this.focusRunId = runId;
+    this.render();
   }
 
   // ─── HTML ─────────────────────────────────────────────────────────────────
@@ -120,11 +131,14 @@ export class QFlowDashboardPanel {
       const date = new Date(r.timestamp).toLocaleString();
       const statusClass = r.failed > 0 ? 'fail' : 'pass';
       const statusIcon = r.failed > 0 ? '✗' : '✓';
+      const highlightAttr = this.focusRunId && r.id === this.focusRunId
+        ? `class="${statusClass} focused"`
+        : `class="${statusClass}"`;
       return `
-        <tr class="${statusClass}">
+        <tr ${highlightAttr}>
           <td><span class="badge ${statusClass}">${statusIcon}</span></td>
-          <td>${date}</td>
-          <td>${r.suite}</td>
+          <td>${h(date)}</td>
+          <td>${h(r.suite)}</td>
           <td>${r.passed}</td>
           <td>${r.failed}</td>
           <td>${r.total}</td>
@@ -158,7 +172,7 @@ export class QFlowDashboardPanel {
       <div class="section">
         <h2>Quarantined Tests (${quarantined.length})</h2>
         <ul class="quarantine-list">
-          ${quarantined.map((q) => `<li>${q}</li>`).join('')}
+          ${quarantined.map((q) => `<li>${h(q)}</li>`).join('')}
         </ul>
       </div>
     ` : '';
@@ -185,7 +199,8 @@ export class QFlowDashboardPanel {
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: var(--vscode-font-family); font-size: 13px; color: var(--fg); background: var(--bg); padding: 20px; }
-    h1 { font-size: 18px; margin-bottom: 16px; }
+    h1 { font-size: 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    h1 svg { width: 20px; height: 20px; flex-shrink: 0; }
     h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
     .summary { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
     .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 20px; min-width: 90px; }
@@ -197,8 +212,8 @@ export class QFlowDashboardPanel {
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
     th { font-size: 11px; text-transform: uppercase; opacity: 0.7; }
-    tr.pass td { }
     tr.fail td { color: var(--fail); }
+    tr.focused td { outline: 2px solid var(--vscode-focusBorder); outline-offset: -1px; }
     .badge { display: inline-block; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 50%; font-size: 10px; font-weight: 700; }
     .badge.pass { background: var(--pass); color: #fff; }
     .badge.fail { background: var(--fail); color: #fff; }
@@ -210,9 +225,24 @@ export class QFlowDashboardPanel {
   </style>
 </head>
 <body>
-  <h1>$(beaker) qflow Dashboard</h1>
+  <h1>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 3h6M9 3v6l-4 9a1 1 0 0 0 .9 1.5h12.2a1 1 0 0 0 .9-1.5L15 9V3"/>
+    </svg>
+    qflow Dashboard
+  </h1>
   ${body}
 </body>
 </html>`;
   }
+}
+
+/** Escape a string for safe inclusion in HTML content. */
+function h(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }

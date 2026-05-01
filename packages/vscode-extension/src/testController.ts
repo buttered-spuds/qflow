@@ -174,9 +174,11 @@ export class QFlowTestController {
       return;
     }
 
-    // Build a `--grep` from the included test names.
+    // Build a `--grep` from the included test full names (ids) so that
+    // duplicate short names across different describe blocks don't accidentally
+    // match the wrong tests.
     const names = include
-      .map((i) => (typeof i.label === 'string' ? i.label : ''))
+      .map((i) => (typeof i.id === 'string' ? i.id : ''))
       .filter(Boolean);
     const grep = names.map(escapeRegex).join('|');
     try {
