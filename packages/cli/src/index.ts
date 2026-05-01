@@ -24,7 +24,7 @@ program
 program
   .command('init')
   .description('Interactive setup wizard — generates framework.config.ts and CI workflow')
-  .action(initCommand);
+  .action(() => initCommand());
 
 program
   .command('run')

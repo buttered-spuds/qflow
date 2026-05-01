@@ -4,7 +4,9 @@ import { writeFile, mkdir, readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-export async function initCommand(): Promise<void> {
+export interface InitOptions {}
+
+export async function initCommand(_opts: InitOptions = {}): Promise<void> {
   console.log(chalk.bold.cyan('\n  qflow init\n'));
   console.log('This wizard will create framework.config.ts in the current directory.\n');
 
@@ -266,6 +268,10 @@ export async function initCommand(): Promise<void> {
 
   console.log('\n  Run tests:\n    npx @qflow/cli run\n');
 
+  // ─── VS Code extension ─────────────────────────────────────────────────────
+
+  await maybeInstallVSCodeExtension();
+
   // ─── Mini-doctor (quick local sanity check) ────────────────────────────────
   console.log(chalk.dim('  Running quick health check...\n'));
   try {
@@ -273,6 +279,74 @@ export async function initCommand(): Promise<void> {
     await doctorCommand({ quick: true });
   } catch (err) {
     console.log(chalk.yellow(`  ⚠ Health check could not run: ${err instanceof Error ? err.message : String(err)}`));
+  }
+}
+
+// ─── VS Code extension installer ─────────────────────────────────────────────
+
+async function maybeInstallVSCodeExtension(): Promise<void> {
+  // Detect VS Code terminal via common environment markers.
+  const isVSCode =
+    process.env.TERM_PROGRAM === 'vscode' ||
+    Boolean(process.env.VSCODE_PID) ||
+    Boolean(process.env.VSCODE_GIT_IPC_HANDLE) ||
+    Boolean(process.env.VSCODE_INJECTION);
+
+  if (!isVSCode) return;
+
+  // Check whether the `code` CLI is available.
+  let codeCliAvailable = false;
+  try {
+    execSync('code --version', { stdio: 'ignore' });
+    codeCliAvailable = true;
+  } catch {
+    // `code` CLI is not on PATH
+  }
+
+  const EXTENSION_ID = 'qflow.qflow-vscode';
+
+  if (codeCliAvailable) {
+    // Check if already installed.
+    let alreadyInstalled = false;
+    try {
+      const installed = execSync('code --list-extensions', { encoding: 'utf-8' });
+      alreadyInstalled = installed.split('\n').some((line) => line.trim() === EXTENSION_ID);
+    } catch {
+      // ignore
+    }
+
+    if (alreadyInstalled) {
+      console.log(chalk.dim('  VS Code extension already installed — skipping.'));
+      return;
+    }
+
+    console.log(chalk.bold.cyan('\n  VS Code detected!\n'));
+    const install = await confirm({
+      message: 'Install the qflow VS Code extension? (adds a Test Explorer, status bar, and inline commands)',
+      default: true,
+    });
+
+    if (install) {
+      try {
+        execSync(`code --install-extension ${EXTENSION_ID}`, { stdio: 'inherit' });
+        console.log(chalk.green('  ✓ qflow VS Code extension installed'));
+        console.log(chalk.dim('    Reload VS Code (Ctrl+Shift+P → "Reload Window") to activate it.\n'));
+      } catch {
+        console.log(chalk.yellow(`  ⚠ Could not auto-install the extension.`));
+        console.log(chalk.dim(`    Install manually: open VS Code → Extensions → search "qflow"\n`));
+      }
+    } else {
+      console.log(chalk.dim('  Skipped. You can install it later from the VS Code Marketplace: search "qflow".\n'));
+    }
+  } else {
+    // `code` CLI not available — just tell the user about the extension.
+    console.log(chalk.bold.cyan('\n  VS Code detected!\n'));
+    console.log(
+      chalk.dim(
+        '  The qflow VS Code extension adds a Test Explorer, status bar, and inline run/generate commands.\n' +
+        '  Install it from the VS Code Marketplace: open Extensions (Ctrl+Shift+X) and search "qflow".\n',
+      ),
+    );
   }
 }
 

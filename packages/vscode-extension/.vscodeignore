@@ -1,0 +1,25 @@
+# .vscodeignore — files that must NOT be in the published VSIX.
+# The compiled `dist/` output and `media/` assets ARE shipped (do not list them).
+
+# Sources & build inputs (compiled output is in dist/)
+src/**
+*.ts
+!dist/**/*.d.ts
+tsconfig.json
+esbuild.mjs
+
+# Dev/test scaffolding
+.vscode/**
+test/**
+**/*.test.*
+**/*.spec.*
+
+# Tooling configs
+.editorconfig
+.eslintrc*
+.prettierrc*
+.gitignore
+.gitattributes
+
+# Self
+.vscodeignore

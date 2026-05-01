@@ -5,3 +5,6 @@ dist/
 *.env
 *.env.*
 !*.env.example
+
+# Local-only working notes (not committed)
+ROADMAP.md
