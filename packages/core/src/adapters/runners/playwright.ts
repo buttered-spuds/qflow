@@ -109,6 +109,10 @@ export class PlaywrightRunner implements RunnerAdapter {
       args.push('--grep', options.tagPattern);
     }
 
+    if (options.file) {
+      args.push(options.file);
+    }
+
     // pr-smart falls back to full run in Phase 1 (smart selection is Phase 4)
 
     const startedAt = Date.now();

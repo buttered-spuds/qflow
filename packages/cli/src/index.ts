@@ -32,6 +32,7 @@ program
   .option('-s, --suite <suite>', 'Suite to run: regression | smoke | pr-smart', 'regression')
   .option('-l, --local', 'Skip all notifications and LLM calls (local/offline mode)', false)
   .option('-e, --env <name>', 'Apply an environment profile from framework.config.ts (environments.<name>)')
+  .option('--file <path>', 'Run only the tests in a single file (relative path)')
   .action(runCommand);
 
 program

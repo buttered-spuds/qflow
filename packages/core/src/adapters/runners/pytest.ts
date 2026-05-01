@@ -60,6 +60,10 @@ export class PytestRunner implements RunnerAdapter {
       args.push('-m', options.tagPattern);
     }
 
+    if (options.file) {
+      args.push(options.file);
+    }
+
     const startedAt = new Date().toISOString();
 
     const baseUrlEnv = this.config.baseUrl ? { BASE_URL: this.config.baseUrl } : {};

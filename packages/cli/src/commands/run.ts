@@ -6,10 +6,11 @@ interface RunOptions {
   suite: string;
   local: boolean;
   env?: string;
+  file?: string;
 }
 
 export async function runCommand(options: RunOptions): Promise<void> {
-  const { suite, local, env: envName } = options;
+  const { suite, local, env: envName, file } = options;
   const cwd = process.cwd();
 
   // Load and validate config
@@ -45,7 +46,7 @@ export async function runCommand(options: RunOptions): Promise<void> {
   let report: RunReport;
 
   try {
-    report = await orchestrator.run({ suite, local, cwd });
+    report = await orchestrator.run({ suite, local, cwd, file });
   } catch (err) {
     console.error(chalk.red(`\n  Run failed: ${err instanceof Error ? err.message : String(err)}\n`));
     process.exit(1);

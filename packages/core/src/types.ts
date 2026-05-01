@@ -218,4 +218,6 @@ export interface RunOptions {
   env?: Record<string, string>;
   /** Optional grep/regex pattern of test names. Used by `tags.smoke|regression` config. */
   tagPattern?: string;
+  /** Relative path to a single test file to run. */
+  file?: string;
 }

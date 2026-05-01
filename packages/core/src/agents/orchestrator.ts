@@ -14,6 +14,8 @@ export interface OrchestratorRunOptions {
   suite: string;
   local: boolean;
   cwd: string;
+  /** Relative path to a single test file to run. */
+  file?: string;
 }
 
 export interface OrchestratorGenerateOptions {
@@ -46,6 +48,7 @@ export class Orchestrator {
       cwd: options.cwd,
       local: options.local,
       tagPattern,
+      file: options.file,
     };
 
     const report = await this.runnerAgent.run(runOptions);
