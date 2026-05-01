@@ -71,7 +71,7 @@ export function activate(context: vscode.ExtensionContext): void {
   dataWatcher.onDidDelete(refreshAll);
 
   // Also re-render decorations when the user changes config / opens a file.
-  vscode.workspace.onDidChangeConfiguration((e) => {
+  const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((e) => {
     if (e.affectsConfiguration('qflow')) refreshAll();
   });
 
@@ -100,6 +100,7 @@ export function activate(context: vscode.ExtensionContext): void {
     runsHistoryView,
     flakinessTreeView,
     dataWatcher,
+    configChangeDisposable,
     runner,
     statusBar,
     decorations,

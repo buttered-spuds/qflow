@@ -45,11 +45,13 @@ export class RunnerService implements vscode.Disposable {
         reject(err);
       });
 
-      proc.on('close', (code: number | null) => {
-        if (code === 0 || code === null) {
+      proc.on('close', (code: number | null, signal: NodeJS.Signals | null) => {
+        if (code === 0) {
           resolve();
         } else {
-          const msg = `qflow exited with code ${code}`;
+          const msg = code !== null
+            ? `qflow exited with code ${code}`
+            : `qflow was terminated by signal ${signal ?? 'unknown'}`;
           this.channel.appendLine(`\n  ${msg}`);
           reject(new Error(msg));
         }

@@ -17,16 +17,16 @@ function tmpFile(content: string): string {
 }
 
 describe('testDiscovery', () => {
-  it('finds bare test() and it() calls', () => {
+  it('finds bare test() and it() calls', async () => {
     const f = tmpFile(`
       test('foo', () => {});
       it("bar", () => {});
     `);
-    const tests = discoverTestsInFile(mockUri(f), 'sample.spec.ts');
+    const tests = await discoverTestsInFile(mockUri(f), 'sample.spec.ts');
     expect(tests.map((t) => t.name).sort()).toEqual(['bar', 'foo']);
   });
 
-  it('prefixes with describe blocks', () => {
+  it('prefixes with describe blocks', async () => {
     const f = tmpFile(`
       describe('Login', () => {
         test('redirects', () => {});
@@ -35,19 +35,19 @@ describe('testDiscovery', () => {
         });
       });
     `);
-    const tests = discoverTestsInFile(mockUri(f), 'x.spec.ts');
+    const tests = await discoverTestsInFile(mockUri(f), 'x.spec.ts');
     const fullNames = tests.map((t) => t.fullName).sort();
     expect(fullNames).toContain('Login > redirects');
     expect(fullNames).toContain('Login > errors > shows banner');
   });
 
-  it('ignores commented-out tests', () => {
+  it('ignores commented-out tests', async () => {
     const f = tmpFile(`
       // test('not me', () => {});
       /* test('also not me', () => {}); */
       test('only me', () => {});
     `);
-    const tests = discoverTestsInFile(mockUri(f), 'x.spec.ts');
+    const tests = await discoverTestsInFile(mockUri(f), 'x.spec.ts');
     expect(tests.map((t) => t.name)).toEqual(['only me']);
   });
 });

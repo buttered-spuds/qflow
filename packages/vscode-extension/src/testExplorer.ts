@@ -77,11 +77,14 @@ export class QFlowTestExplorer implements vscode.TreeDataProvider<TestTreeItem> 
   readonly onDidChangeTreeData: vscode.Event<TestTreeItem | undefined | void> = this._onDidChange.event;
 
   private filesCache: { uri: vscode.Uri; relPath: string; tests: DiscoveredTest[] }[] | null = null;
+  /** Flakiness index recomputed once per refresh; cleared together with filesCache. */
+  private flakinessCache: Map<string, FlakinessStat> | null = null;
 
   constructor(private readonly store: RunStore) {}
 
   refresh(): void {
     this.filesCache = null;
+    this.flakinessCache = null;
     this._onDidChange.fire();
   }
 
@@ -122,9 +125,13 @@ export class QFlowTestExplorer implements vscode.TreeDataProvider<TestTreeItem> 
 
     if (element.kind === 'file' && element.file) {
       const report = this.store.loadLatestReport();
-      const flakies = flakinessIndex(
-        computeFlakiness(this.store, this.flakinessWindow()),
-      );
+      // Reuse the cached flakiness index — computed once per refresh cycle.
+      if (!this.flakinessCache) {
+        this.flakinessCache = flakinessIndex(
+          computeFlakiness(this.store, this.flakinessWindow()),
+        );
+      }
+      const flakies = this.flakinessCache;
       return element.file.tests.map((d) => {
         const result = report?.tests.find(
           (rt) => rt.fullName === d.fullName || rt.name === d.name,
@@ -159,13 +166,14 @@ export class QFlowTestExplorer implements vscode.TreeDataProvider<TestTreeItem> 
       '{**/node_modules/**,**/dist/**,**/.qflow/**}',
     );
 
-    const out = uris
-      .map((uri) => {
+    const out = await Promise.all(
+      uris.map(async (uri) => {
         const relPath = relative(root, uri.fsPath).split('\\').join('/');
-        const tests = discoverTestsInFile(uri, relPath);
+        const tests = await discoverTestsInFile(uri, relPath);
         return { uri, relPath, tests };
-      })
-      .sort((a, b) => a.relPath.localeCompare(b.relPath));
+      }),
+    );
+    out.sort((a, b) => a.relPath.localeCompare(b.relPath));
 
     this.filesCache = out;
     return out;

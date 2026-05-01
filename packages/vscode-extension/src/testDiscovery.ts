@@ -1,5 +1,6 @@
 import type { TextDocument, Uri } from 'vscode';
 import { readFileSync } from 'fs';
+import { readFile } from 'fs/promises';
 
 export interface DiscoveredTest {
   /** The display name passed as the first arg to test/it. */
@@ -32,10 +33,10 @@ export function discoverTestsInDocument(doc: TextDocument, relPath: string): Dis
   return extractTests(text, doc.uri, relPath);
 }
 
-export function discoverTestsInFile(uri: Uri, relPath: string): DiscoveredTest[] {
+export async function discoverTestsInFile(uri: Uri, relPath: string): Promise<DiscoveredTest[]> {
   let text: string;
   try {
-    text = readFileSync(uri.fsPath, 'utf-8');
+    text = await readFile(uri.fsPath, 'utf-8');
   } catch {
     return [];
   }
@@ -84,7 +85,8 @@ function collectBlocks(text: string, re: RegExp): Block[] {
   return out;
 }
 
-/** Walk forward from `from` and return the offset of the matching closing `}`. */
+/** Walk forward from `from` and return the offset of the matching closing `}`.
+ *  String literals are skipped so braces inside strings don't affect depth. */
 function findBlockEnd(text: string, from: number): number {
   // Find the first `{` after `from`.
   let i = from;
@@ -92,10 +94,21 @@ function findBlockEnd(text: string, from: number): number {
   if (i >= text.length) return text.length;
   let depth = 1;
   i++;
+  let inStr: string | null = null;
   while (i < text.length && depth > 0) {
     const ch = text[i];
-    if (ch === '{') depth++;
-    else if (ch === '}') depth--;
+    if (inStr) {
+      if (ch === '\\' && i + 1 < text.length) { i += 2; continue; }
+      if (ch === inStr) inStr = null;
+    } else {
+      if (ch === '"' || ch === "'" || ch === '`') {
+        inStr = ch;
+      } else if (ch === '{') {
+        depth++;
+      } else if (ch === '}') {
+        depth--;
+      }
+    }
     i++;
   }
   return i;
@@ -159,7 +172,7 @@ function stripComments(text: string): string {
         out += text[i] === '\n' ? '\n' : ' ';
         i++;
       }
-      out += '  '; i += 2;
+      if (i < text.length) { out += '  '; i += 2; } // consume */ only if found
       continue;
     }
     out += ch;

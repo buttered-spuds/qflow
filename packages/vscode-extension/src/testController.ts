@@ -138,7 +138,7 @@ export class QFlowTestController {
   private async parseTestsInFile(uri: vscode.Uri): Promise<void> {
     const fileItem = this.ensureFileItem(uri);
     const rel = this.relPath(uri);
-    const tests = discoverTestsInFile(uri, rel);
+    const tests = await discoverTestsInFile(uri, rel);
     this.applyDiscovered(fileItem, tests);
   }
 
@@ -150,6 +150,8 @@ export class QFlowTestController {
   }
 
   private applyDiscovered(fileItem: vscode.TestItem, tests: DiscoveredTest[]): void {
+    // Remove stale entries from the map before repopulating.
+    fileItem.children.forEach((child) => this.testFullNames.delete(child.id));
     fileItem.children.replace(
       tests.map((t) => {
         // Prefix with the file id (relPath) so IDs are unique across files
@@ -187,9 +189,36 @@ export class QFlowTestController {
 
     // Build a `--grep` from the included test full names so that duplicate short
     // names across different describe blocks don't accidentally match the wrong tests.
-    const names = include
-      .map((i) => this.testFullNames.get(i.id) ?? '')
-      .filter(Boolean);
+    // If an included item is a parent (file-level), expand to its children.
+    const names: string[] = [];
+    for (const item of include) {
+      const fullName = this.testFullNames.get(item.id);
+      if (fullName) {
+        names.push(fullName);
+      } else {
+        // Parent item (file or folder) — collect its discovered children.
+        item.children.forEach((child) => {
+          const childFullName = this.testFullNames.get(child.id);
+          if (childFullName) names.push(childFullName);
+        });
+      }
+    }
+
+    if (names.length === 0) {
+      // No resolvable test names — fall back to the default suite run.
+      const suite = vscode.workspace
+        .getConfiguration('qflow')
+        .get<string>('defaultSuite', 'regression');
+      try {
+        await this.runner.run(['run', '--suite', suite]);
+      } catch {
+        /* errors surface in output channel */
+      }
+      this.store.invalidate();
+      this.refreshFromStore();
+      return;
+    }
+
     const grep = names.map(escapeRegex).join('|');
     try {
       await this.runner.run(['run', '--grep', grep]);
