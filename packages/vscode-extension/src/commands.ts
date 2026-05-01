@@ -268,17 +268,34 @@ async function pickTestFromActiveEditor(): Promise<TestRef | undefined> {
   return pick ? { name: pick.t.name, fullName: pick.t.fullName, file: rel } : undefined;
 }
 
-async function resolveFilePath(uriOrFile?: vscode.Uri | { file: string }): Promise<string | undefined> {
+async function resolveFilePath(uriOrFile?: unknown): Promise<string | undefined> {
+  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
+
+  // Plain vscode.Uri (e.g. from editor/title button or keybinding)
   if (uriOrFile instanceof vscode.Uri) {
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
     return uriOrFile.fsPath.startsWith(root)
       ? uriOrFile.fsPath.slice(root.length + 1).split('\\').join('/')
       : uriOrFile.fsPath;
   }
-  if (uriOrFile && typeof uriOrFile === 'object' && 'file' in uriOrFile) return uriOrFile.file;
+
+  // TreeItem passed from the inline view action — has a resourceUri property
+  if (uriOrFile && typeof uriOrFile === 'object' && 'resourceUri' in uriOrFile) {
+    const uri = (uriOrFile as { resourceUri: vscode.Uri }).resourceUri;
+    if (uri instanceof vscode.Uri) {
+      return uri.fsPath.startsWith(root)
+        ? uri.fsPath.slice(root.length + 1).split('\\').join('/')
+        : uri.fsPath;
+    }
+  }
+
+  // { file: string } plain object (programmatic callers)
+  if (uriOrFile && typeof uriOrFile === 'object' && 'file' in uriOrFile
+      && typeof (uriOrFile as { file: unknown }).file === 'string') {
+    return (uriOrFile as { file: string }).file;
+  }
+
   const editor = vscode.window.activeTextEditor;
   if (!editor) return undefined;
-  const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
   return editor.document.uri.fsPath.startsWith(root)
     ? editor.document.uri.fsPath.slice(root.length + 1).split('\\').join('/')
     : editor.document.uri.fsPath;
