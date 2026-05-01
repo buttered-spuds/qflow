@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+import type { TextDocument, Uri } from 'vscode';
 import { readFileSync } from 'fs';
 
 export interface DiscoveredTest {
@@ -11,7 +11,7 @@ export interface DiscoveredTest {
   /** 0-based character where the test() call starts. */
   character: number;
   /** Workspace-absolute file URI. */
-  uri: vscode.Uri;
+  uri: Uri;
   /** Relative path from workspace root, slash-normalised. */
   relPath: string;
 }
@@ -27,12 +27,12 @@ export interface DiscoveredTest {
 const TEST_CALL_RE = /\b(test|it)(?:\.(?:only|skip|todo))?\s*\(\s*(['"`])([^'"`]+?)\2/g;
 const DESCRIBE_RE = /\b(describe|suite)(?:\.(?:only|skip))?\s*\(\s*(['"`])([^'"`]+?)\2/g;
 
-export function discoverTestsInDocument(doc: vscode.TextDocument, relPath: string): DiscoveredTest[] {
+export function discoverTestsInDocument(doc: TextDocument, relPath: string): DiscoveredTest[] {
   const text = doc.getText();
   return extractTests(text, doc.uri, relPath);
 }
 
-export function discoverTestsInFile(uri: vscode.Uri, relPath: string): DiscoveredTest[] {
+export function discoverTestsInFile(uri: Uri, relPath: string): DiscoveredTest[] {
   let text: string;
   try {
     text = readFileSync(uri.fsPath, 'utf-8');
@@ -42,13 +42,16 @@ export function discoverTestsInFile(uri: vscode.Uri, relPath: string): Discovere
   return extractTests(text, uri, relPath);
 }
 
-function extractTests(text: string, uri: vscode.Uri, relPath: string): DiscoveredTest[] {
+function extractTests(text: string, uri: Uri, relPath: string): DiscoveredTest[] {
   // Strip line+block comments so we don't match commented-out tests.
   const stripped = stripComments(text);
 
   // Build a sorted list of describe blocks: { start, end, name }
   // We approximate "end" by matching brace depth from the call site.
   const describes = collectBlocks(stripped, DESCRIBE_RE);
+
+  // Precompute line-start offsets once so each offset→position lookup is O(log n).
+  const lineOffsets = buildLineOffsets(stripped);
 
   const tests: DiscoveredTest[] = [];
   TEST_CALL_RE.lastIndex = 0;
@@ -60,7 +63,7 @@ function extractTests(text: string, uri: vscode.Uri, relPath: string): Discovere
       .filter((d) => d.start <= offset && offset <= d.end)
       .map((d) => d.name);
     const fullName = enclosing.length > 0 ? `${enclosing.join(' > ')} > ${name}` : name;
-    const { line, character } = offsetToPosition(stripped, offset);
+    const { line, character } = offsetToPosition(lineOffsets, offset);
     tests.push({ name, fullName, line, character, uri, relPath });
   }
   return tests;
@@ -98,13 +101,32 @@ function findBlockEnd(text: string, from: number): number {
   return i;
 }
 
-function offsetToPosition(text: string, offset: number): { line: number; character: number } {
-  let line = 0;
-  let lastNl = -1;
-  for (let i = 0; i < offset; i++) {
-    if (text[i] === '\n') { line++; lastNl = i; }
+/**
+ * Build an array of character offsets where each line starts.
+ * lineOffsets[0] === 0 (line 0 starts at position 0).
+ * Built once per file so offsetToPosition is O(log n) per lookup.
+ */
+function buildLineOffsets(text: string): number[] {
+  const offsets: number[] = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\n') offsets.push(i + 1);
   }
-  return { line, character: offset - lastNl - 1 };
+  return offsets;
+}
+
+/** Map a character offset to (line, character) in O(log n) via binary search. */
+function offsetToPosition(lineOffsets: number[], offset: number): { line: number; character: number } {
+  let lo = 0;
+  let hi = lineOffsets.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (lineOffsets[mid] <= offset) {
+      lo = mid;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return { line: lo, character: offset - lineOffsets[lo] };
 }
 
 /** Replace comments with spaces so character offsets are preserved. */

@@ -99,7 +99,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     const target = ref ?? (await pickTestFromActiveEditor());
     if (!target) return;
     await withProgress(`Running ${target.name}`, () =>
-      runner.run(['run', '--grep', escapeRegex(target.name)]),
+      runner.run(['run', '--grep', escapeRegex(target.fullName)]),
     );
   }));
 
@@ -120,7 +120,7 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
       { placeHolder: `Heal "${target.name}" — choose mode` },
     );
     if (!choice) return;
-    const args = ['heal', '--grep', escapeRegex(target.name)];
+    const args = ['heal', '--grep', escapeRegex(target.fullName)];
     if (choice.value === 'apply') args.push('--apply');
     await withProgress(`Healing ${target.name}`, () => runner.run(args));
   }));

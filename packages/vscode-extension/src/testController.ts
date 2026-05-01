@@ -14,6 +14,9 @@ import { computeFlakiness, flakinessIndex } from './flakinessService';
 export class QFlowTestController {
   private readonly controller: vscode.TestController;
   private readonly fileItems = new Map<string /* relPath */, vscode.TestItem>();
+  /** Maps TestItem.id → fullName so runHandler can build the --grep without parsing the id. */
+  private readonly testFullNames = new Map<string /* TestItem.id */, string /* fullName */>();
+  private readonly listenerDisposables: vscode.Disposable[] = [];
 
   constructor(
     private readonly runner: RunnerService,
@@ -38,19 +41,22 @@ export class QFlowTestController {
     );
 
     // Watch document changes to keep the tree fresh.
-    vscode.workspace.onDidChangeTextDocument((e) => {
-      if (this.isTestFile(e.document.uri)) {
-        this.parseTestsInDocument(e.document);
-      }
-    });
-    vscode.workspace.onDidOpenTextDocument((doc) => {
-      if (this.isTestFile(doc.uri)) {
-        this.parseTestsInDocument(doc);
-      }
-    });
+    this.listenerDisposables.push(
+      vscode.workspace.onDidChangeTextDocument((e) => {
+        if (this.isTestFile(e.document.uri)) {
+          this.parseTestsInDocument(e.document);
+        }
+      }),
+      vscode.workspace.onDidOpenTextDocument((doc) => {
+        if (this.isTestFile(doc.uri)) {
+          this.parseTestsInDocument(doc);
+        }
+      }),
+    );
   }
 
   dispose(): void {
+    for (const d of this.listenerDisposables) d.dispose();
     this.controller.dispose();
   }
 
@@ -76,10 +82,11 @@ export class QFlowTestController {
       const fileItem = this.fileItems.get(fileRel);
       if (!fileItem) continue;
 
-      // Find or create child item by full name.
+      // Find child item — match by the file-prefixed ID we created in applyDiscovered.
       let testItem: vscode.TestItem | undefined;
       fileItem.children.forEach((child) => {
-        if (child.label === t.name || child.id === t.fullName) testItem = child;
+        const childFullName = this.testFullNames.get(child.id);
+        if (childFullName === t.fullName || child.label === t.name) testItem = child;
       });
       if (!testItem) continue;
 
@@ -145,8 +152,12 @@ export class QFlowTestController {
   private applyDiscovered(fileItem: vscode.TestItem, tests: DiscoveredTest[]): void {
     fileItem.children.replace(
       tests.map((t) => {
-        const child = this.controller.createTestItem(t.fullName, t.name, t.uri);
+        // Prefix with the file id (relPath) so IDs are unique across files
+        // even when different files contain identically-named tests.
+        const id = `${fileItem.id}::${t.fullName}`;
+        const child = this.controller.createTestItem(id, t.name, t.uri);
         child.range = new vscode.Range(t.line, t.character, t.line, t.character + t.name.length);
+        this.testFullNames.set(id, t.fullName);
         return child;
       }),
     );
@@ -174,11 +185,10 @@ export class QFlowTestController {
       return;
     }
 
-    // Build a `--grep` from the included test full names (ids) so that
-    // duplicate short names across different describe blocks don't accidentally
-    // match the wrong tests.
+    // Build a `--grep` from the included test full names so that duplicate short
+    // names across different describe blocks don't accidentally match the wrong tests.
     const names = include
-      .map((i) => (typeof i.id === 'string' ? i.id : ''))
+      .map((i) => this.testFullNames.get(i.id) ?? '')
       .filter(Boolean);
     const grep = names.map(escapeRegex).join('|');
     try {

@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { Uri as VscodeUri } from 'vscode';
 import { discoverTestsInFile } from '../src/testDiscovery';
 import { writeFileSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-vi.mock('vscode', () => ({ Uri: { file: (p: string) => ({ fsPath: p, scheme: 'file', authority: '', path: p, query: '', fragment: '' }) } }));
+// testDiscovery.ts uses only type-level imports from 'vscode', so no mock is needed.
 
 const mockUri = (p: string): VscodeUri => ({ fsPath: p, scheme: 'file', authority: '', path: p, query: '', fragment: '', with: () => ({} as VscodeUri), toJSON: () => ({}) } as unknown as VscodeUri);
 
