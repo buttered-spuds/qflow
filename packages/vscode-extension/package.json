@@ -3,7 +3,7 @@
   "displayName": "qflow",
   "description": "AI-orchestrated testing framework — run, generate, heal and explore tests from VS Code",
   "version": "0.2.1",
-  "publisher": "qflow",
+  "publisher": "butteredspuds",
   "icon": "media/icon.png",
   "license": "MIT",
   "homepage": "https://github.com/buttered-spuds/qflow#readme",
