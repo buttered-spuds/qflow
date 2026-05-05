@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import { createRequire } from 'module';
 import { initCommand } from './commands/init.js';
 import { runCommand } from './commands/run.js';
 import { generateCommand } from './commands/generate.js';
@@ -14,12 +15,15 @@ import { recordCommand } from './commands/record.js';
 import { replayCommand } from './commands/replay.js';
 import { upgradeCommand } from './commands/upgrade.js';
 
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
+
 const program = new Command();
 
 program
   .name('qflow')
   .description('AI-orchestrated plug-and-play testing framework')
-  .version('0.2.0');
+  .version(version);
 
 program
   .command('init')
