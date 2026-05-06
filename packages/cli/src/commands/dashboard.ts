@@ -62,6 +62,16 @@ export async function dashboardCommand(options: DashboardOptions): Promise<void>
     }
   });
 
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(chalk.red(`\n  Port ${port} is already in use.`));
+      console.error(chalk.dim(`  Try a different port: npx @qflow/cli dashboard --port 3001\n`));
+    } else {
+      console.error(chalk.red(`\n  Server error: ${err.message}\n`));
+    }
+    process.exit(1);
+  });
+
   server.listen(port);
 }
 
