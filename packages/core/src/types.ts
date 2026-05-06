@@ -205,8 +205,8 @@ export interface ManifestEntry {
 export interface Manifest {
   runs: ManifestEntry[];
   /** Full test names currently quarantined (non-blocking). */
-  quarantined: string[];
-  lastUpdated: string;
+  quarantined?: string[];
+  lastUpdated?: string;
 }
 
 // ─── Runner options ───────────────────────────────────────────────────────────

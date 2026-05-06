@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { relative } from 'path';
+import { relative, join } from 'path';
 import type { RunnerService } from './runnerService';
 import type { RunStore } from './runStore';
 import { discoverTestsInDocument, discoverTestsInFile, type DiscoveredTest } from './testDiscovery';
@@ -61,9 +61,19 @@ export class QFlowTestController {
   }
 
   /** Refresh every test item with the latest run/flakiness data. */
-  refreshFromStore(): void {
+  async refreshFromStore(): Promise<void> {
     const report = this.store.loadLatestReport();
     if (!report) return;
+
+    // Ensure file items exist for every file in the report (lazy discovery may not have run yet).
+    const root = this.store.getRoot();
+    for (const t of report.tests) {
+      const fileRel = t.file ? this.normalise(t.file) : undefined;
+      if (!fileRel || this.fileItems.has(fileRel)) continue;
+      if (root) {
+        try { await this.parseTestsInFile(vscode.Uri.file(join(root, fileRel))); } catch { /* file may not exist */ }
+      }
+    }
 
     const flakies = flakinessIndex(
       computeFlakiness(this.store, this.flakinessWindow()),
@@ -183,7 +193,7 @@ export class QFlowTestController {
         /* errors surface in output channel */
       }
       this.store.invalidate();
-      this.refreshFromStore();
+      await this.refreshFromStore();
       return;
     }
 
@@ -215,18 +225,29 @@ export class QFlowTestController {
         /* errors surface in output channel */
       }
       this.store.invalidate();
-      this.refreshFromStore();
+      await this.refreshFromStore();
       return;
     }
 
-    const grep = names.map(escapeRegex).join('|');
+    // If all selected items come from a single file, restrict with --file so only
+    // that file is run (avoids running every spec file looking for the grep match).
+    const fileSet = new Set<string>();
+    for (const item of include) {
+      // Test item ids are formatted as `fileRel::fullName`; file item ids are just `fileRel`.
+      fileSet.add(item.id.includes('::') ? item.id.split('::')[0] : item.id);
+    }
+
+    const args: string[] = ['run'];
+    if (fileSet.size === 1) args.push('--file', [...fileSet][0]);
+    if (names.length > 0) args.push('--grep', names.map(escapeRegex).join('|'));
+
     try {
-      await this.runner.run(['run', '--grep', grep]);
+      await this.runner.run(args);
     } catch {
       /* errors surface in output channel */
     }
     this.store.invalidate();
-    this.refreshFromStore();
+    await this.refreshFromStore();
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────

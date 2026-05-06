@@ -98,9 +98,9 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
   d.push(vscode.commands.registerCommand('qflow.runTest', async (ref?: TestRef) => {
     const target = ref ?? (await pickTestFromActiveEditor());
     if (!target) return;
-    await withProgress(`Running ${target.name}`, () =>
-      runner.run(['run', '--grep', escapeRegex(target.fullName)]),
-    );
+    const args = ['run', '--grep', escapeRegex(target.fullName)];
+    if (target.file) args.push('--file', target.file);
+    await withProgress(`Running ${target.name}`, () => runner.run(args));
   }));
 
   d.push(vscode.commands.registerCommand('qflow.runFile', async (uriOrFile?: vscode.Uri | { file: string }) => {

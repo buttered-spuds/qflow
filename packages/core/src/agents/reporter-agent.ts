@@ -1,6 +1,7 @@
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, readFile, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
-import type { QFlowConfig, RunReport } from '../types.js';
+import { existsSync } from 'fs';
+import type { QFlowConfig, RunReport, Manifest, ManifestEntry } from '../types.js';
 import { SlackAdapter } from '../adapters/notifications/slack.js';
 import { TeamsAdapter } from '../adapters/notifications/teams.js';
 import { JiraAdapter } from '../adapters/notifications/jira.js';
@@ -40,6 +41,10 @@ export class ReporterAgent {
       console.log(
         `[qflow] Quarantined ${flakinessResult.newlyQuarantined.length} new flaky test(s): ${flakinessResult.newlyQuarantined.join(', ')}`,
       );
+    }
+    // Persist the updated quarantine list into manifest.json
+    if (flakinessResult) {
+      await this.#updateManifestQuarantine(join(opts.cwd, '.qflow', 'data'), flakinessResult.quarantined);
     }
 
     // ── Self-healing (only when LLM + selfHealing configured, tests failed) ──
@@ -115,6 +120,79 @@ export class ReporterAgent {
     const safeTimestamp = report.timestamp.replace(/[:.]/g, '-');
     const filename = `run-${safeTimestamp}.json`;
     await writeFile(join(dir, filename), JSON.stringify(report, null, 2), 'utf-8');
+    await this.#updateManifestRuns(dir, report, filename);
+  }
+
+  async #updateManifestRuns(dir: string, report: RunReport, filename: string): Promise<void> {
+    const manifestPath = join(dir, 'manifest.json');
+    let manifest: Manifest;
+
+    if (existsSync(manifestPath)) {
+      try {
+        manifest = JSON.parse(await readFile(manifestPath, 'utf-8')) as Manifest;
+      } catch {
+        manifest = { runs: [] };
+      }
+    } else {
+      // First run — back-fill entries from any existing run-*.json files so history is preserved.
+      manifest = await this.#buildManifestFromDisk(dir);
+    }
+
+    const entry: ManifestEntry = {
+      id: report.id,
+      timestamp: report.timestamp,
+      suite: report.suite,
+      passed: report.passed,
+      failed: report.failed,
+      total: report.total,
+      file: filename,
+    };
+
+    // Deduplicate then append
+    manifest.runs = manifest.runs.filter((r) => r.id !== report.id);
+    manifest.runs.push(entry);
+
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+  }
+
+  async #buildManifestFromDisk(dir: string): Promise<Manifest> {
+    const entries: ManifestEntry[] = [];
+    try {
+      const files = (await readdir(dir))
+        .filter((f) => f.startsWith('run-') && f.endsWith('.json'))
+        .sort();
+      for (const f of files) {
+        try {
+          const raw = JSON.parse(await readFile(join(dir, f), 'utf-8')) as RunReport;
+          entries.push({
+            id: raw.id,
+            timestamp: raw.timestamp,
+            suite: raw.suite,
+            passed: raw.passed,
+            failed: raw.failed,
+            total: raw.total,
+            file: f,
+          });
+        } catch {
+          // Skip corrupt files
+        }
+      }
+    } catch {
+      // Directory not readable yet
+    }
+    return { runs: entries };
+  }
+
+  async #updateManifestQuarantine(dir: string, quarantined: string[]): Promise<void> {
+    const manifestPath = join(dir, 'manifest.json');
+    if (!existsSync(manifestPath)) return;
+    try {
+      const manifest = JSON.parse(await readFile(manifestPath, 'utf-8')) as Manifest;
+      manifest.quarantined = quarantined;
+      await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+    } catch {
+      // Best-effort — don't fail the run
+    }
   }
 }
 
