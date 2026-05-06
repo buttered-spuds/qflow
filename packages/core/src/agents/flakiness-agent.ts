@@ -74,7 +74,7 @@ export class FlakinessAgent {
     if (!existsSync(dir)) return [];
 
     const files = (await readdir(dir))
-      .filter((f) => f.endsWith('.json'))
+      .filter((f) => f.startsWith('run-') && f.endsWith('.json'))
       .sort() // chronological by filename timestamp
       .slice(-this.historyDepth);
 

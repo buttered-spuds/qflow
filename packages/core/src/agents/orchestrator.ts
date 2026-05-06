@@ -16,6 +16,8 @@ export interface OrchestratorRunOptions {
   cwd: string;
   /** Relative path to a single test file to run. */
   file?: string;
+  /** Explicit test-name grep pattern (overrides suite tag pattern). */
+  grep?: string;
 }
 
 export interface OrchestratorGenerateOptions {
@@ -41,7 +43,8 @@ export class Orchestrator {
   }
 
   async run(options: OrchestratorRunOptions): Promise<RunReport> {
-    const tagPattern = this.#resolveTagPattern(options.suite);
+    // An explicit --grep takes precedence over the suite's tag pattern.
+    const tagPattern = options.grep ?? this.#resolveTagPattern(options.suite);
 
     const runOptions: RunOptions = {
       suite: options.suite,

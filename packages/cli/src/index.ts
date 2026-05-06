@@ -37,6 +37,7 @@ program
   .option('-l, --local', 'Skip all notifications and LLM calls (local/offline mode)', false)
   .option('-e, --env <name>', 'Apply an environment profile from framework.config.ts (environments.<name>)')
   .option('--file <path>', 'Run only the tests in a single file (relative path)')
+  .option('--grep <pattern>', 'Run only tests whose full name matches this pattern (regex)')
   .action(runCommand);
 
 program

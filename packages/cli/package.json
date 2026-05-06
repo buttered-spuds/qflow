@@ -1,6 +1,6 @@
 {
   "name": "@qflow/cli",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "CLI for qflow — AI-orchestrated plug-and-play testing framework",
   "keywords": [
     "testing",
@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^5.0.0",
-    "@qflow/core": "^0.2.1",
+    "@qflow/core": "^0.2.6",
     "chalk": "^5.3.0",
     "commander": "^12.1.0"
   },

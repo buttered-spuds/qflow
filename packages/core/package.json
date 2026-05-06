@@ -1,6 +1,6 @@
 {
   "name": "@qflow/core",
-  "version": "0.2.2",
+  "version": "0.2.6",
   "description": "Core agents, runner adapters, LLM adapters and notification adapters for the qflow testing framework",
   "keywords": ["testing", "playwright", "pytest", "jest", "ai", "llm", "jira", "azure-devops", "ci", "automation"],
   "license": "MIT",
