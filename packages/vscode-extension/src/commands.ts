@@ -95,7 +95,10 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
 
   // ─── Per-test / per-file ──────────────────────────────────────────────────
 
-  d.push(vscode.commands.registerCommand('qflow.runTest', async (ref?: TestRef) => {
+  d.push(vscode.commands.registerCommand('qflow.runTest', async (refOrItem?: TestRef | unknown) => {
+    // When invoked from the sidebar context menu, VS Code passes a TestTreeItem —
+    // not a TestRef. Extract a TestRef from it if possible.
+    const ref = resolveTestRef(refOrItem);
     const target = ref ?? (await pickTestFromActiveEditor());
     if (!target) return;
     const args = ['run', '--grep', escapeRegex(target.fullName)];
@@ -109,7 +112,8 @@ export function registerCommands(deps: CommandDeps): vscode.Disposable[] {
     await withProgress(`Running ${path}`, () => runner.run(['run', '--file', path]));
   }));
 
-  d.push(vscode.commands.registerCommand('qflow.healTest', async (ref?: TestRef) => {
+  d.push(vscode.commands.registerCommand('qflow.healTest', async (refOrItem?: TestRef | unknown) => {
+    const ref = resolveTestRef(refOrItem);
     const target = ref ?? (await pickTestFromActiveEditor());
     if (!target) return;
     const choice = await vscode.window.showQuickPick(
@@ -266,6 +270,33 @@ async function pickTestFromActiveEditor(): Promise<TestRef | undefined> {
     { placeHolder: 'Select a test to run' },
   );
   return pick ? { name: pick.t.name, fullName: pick.t.fullName, file: rel } : undefined;
+}
+
+/**
+ * When `qflow.runTest` / `qflow.healTest` are invoked from the sidebar context
+ * menu, VS Code passes the TestTreeItem rather than a plain TestRef. Extract
+ * a TestRef from it if possible, otherwise return undefined so the caller falls
+ * back to the active-editor picker.
+ */
+function resolveTestRef(arg?: unknown): TestRef | undefined {
+  if (!arg || typeof arg !== 'object') return undefined;
+  // Plain TestRef — has name + fullName + file as strings at the top level.
+  const r = arg as Record<string, unknown>;
+  if (typeof r['name'] === 'string' && typeof r['fullName'] === 'string') {
+    return { name: r['name'] as string, fullName: r['fullName'] as string, file: r['file'] as string ?? '' };
+  }
+  // TestTreeItem from the sidebar — carries a `test` property with a `discovered` sub-object.
+  const test = r['test'] as Record<string, unknown> | undefined;
+  const discovered = test?.['discovered'] as Record<string, unknown> | undefined;
+  if (discovered && typeof discovered['name'] === 'string' && typeof discovered['fullName'] === 'string') {
+    const file = r['file'] as Record<string, unknown> | undefined;
+    return {
+      name: discovered['name'] as string,
+      fullName: discovered['fullName'] as string,
+      file: (file?.['relPath'] as string) ?? '',
+    };
+  }
+  return undefined;
 }
 
 async function resolveFilePath(uriOrFile?: unknown): Promise<string | undefined> {

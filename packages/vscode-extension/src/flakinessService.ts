@@ -53,7 +53,12 @@ export function computeFlakiness(store: RunStore, windowSize: number): Flakiness
 
   for (const stat of stats.values()) {
     const hasBoth = stat.passes > 0 && stat.failures > 0;
-    stat.flakinessPct = hasBoth ? Math.round((stat.failures / stat.totalRuns) * 100) : 0;
+    // Show intermittent flakiness as a percentage of failures.
+    // Tests that consistently fail (no passes) also get their failure rate shown
+    // so the view matches what the CLI quarantines.
+    stat.flakinessPct = (hasBoth || stat.failures > 0)
+      ? Math.round((stat.failures / stat.totalRuns) * 100)
+      : 0;
   }
 
   return [...stats.values()].sort((a, b) => b.flakinessPct - a.flakinessPct);

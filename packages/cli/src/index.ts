@@ -79,6 +79,7 @@ program
   .description('Use the LLM to repair broken Playwright selectors from the latest run')
   .option('--apply', 'Write changes to disk (default: dry-run)', false)
   .option('--run-id <id>', 'Heal a specific run id (default: latest)')
+  .option('--grep <pattern>', 'Heal only tests whose full name matches this pattern')
   .action(healCommand);
 
 program

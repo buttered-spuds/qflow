@@ -8,6 +8,7 @@ import type { RunReport } from '@qflow/core';
 interface HealOptions {
   apply?: boolean;
   runId?: string;
+  grep?: string;
 }
 
 export async function healCommand(options: HealOptions): Promise<void> {
@@ -38,7 +39,10 @@ export async function healCommand(options: HealOptions): Promise<void> {
     process.exit(1);
   }
 
-  const failed = (report.tests ?? []).filter((t) => t.status === 'failed');
+  const allFailed = (report.tests ?? []).filter((t) => t.status === 'failed');
+  const failed = options.grep
+    ? allFailed.filter((t) => new RegExp(options.grep!, 'i').test(t.fullName ?? t.name))
+    : allFailed;
   if (failed.length === 0) {
     console.log(chalk.green('\n  No failed tests in this run — nothing to heal.\n'));
     return;
@@ -77,7 +81,9 @@ export async function healCommand(options: HealOptions): Promise<void> {
 }
 
 async function loadReport(dataDir: string, runId?: string): Promise<RunReport | null> {
-  const files = (await readdir(dataDir)).filter((f) => f.endsWith('.json')).sort();
+  const files = (await readdir(dataDir))
+    .filter((f) => f.startsWith('run-') && f.endsWith('.json'))
+    .sort();
   if (files.length === 0) return null;
 
   if (runId) {
