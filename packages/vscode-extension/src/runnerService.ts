@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
 export class RunnerService implements vscode.Disposable {
   private readonly channel: vscode.OutputChannel;
+  private cachedToken: string | undefined;
 
   constructor() {
     this.channel = vscode.window.createOutputChannel('qflow');
@@ -24,12 +25,13 @@ export class RunnerService implements vscode.Disposable {
     this.channel.appendLine(`─────────────────────────────────────────`);
 
     const { cmd, cmdArgs } = this.resolveCommand(args, cwd);
+    const env = this.buildEnv();
 
     return new Promise<void>((resolve, reject) => {
       const proc = spawn(cmd, cmdArgs, {
         cwd,
         shell: process.platform === 'win32',
-        env: { ...process.env },
+        env,
       });
 
       proc.stdout?.on('data', (data: Buffer) => {
@@ -93,5 +95,36 @@ export class RunnerService implements vscode.Disposable {
 
     // Fall back to npx.
     return { cmd: 'npx', cmdArgs: ['@qflow/cli', ...args] };
+  }
+
+  /**
+   * Build the subprocess environment, injecting GITHUB_TOKEN from whichever
+   * source is available so the user never has to configure it manually:
+   *   1. Already present in process.env (launched from terminal)
+   *   2. VS Code setting qflow.githubToken
+   *   3. `gh auth token` (GitHub CLI — most common local setup)
+   */
+  private buildEnv(): NodeJS.ProcessEnv {
+    const env = { ...process.env };
+    if (env['GITHUB_TOKEN']) return env;
+
+    // VS Code setting override
+    const settingToken: string = vscode.workspace.getConfiguration('qflow').get('githubToken', '');
+    if (settingToken) {
+      env['GITHUB_TOKEN'] = settingToken;
+      return env;
+    }
+
+    // Try `gh auth token` (cached per RunnerService instance)
+    if (!this.cachedToken) {
+      try {
+        this.cachedToken = execSync('gh auth token', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+      } catch {
+        // gh CLI not installed or not authenticated — leave token unset
+      }
+    }
+    if (this.cachedToken) env['GITHUB_TOKEN'] = this.cachedToken;
+
+    return env;
   }
 }

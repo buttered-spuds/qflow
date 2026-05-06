@@ -2,7 +2,7 @@
   "name": "qflow-vscode",
   "displayName": "qflow",
   "description": "AI-orchestrated testing framework — run, generate, heal and explore tests from VS Code",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "publisher": "butteredspuds",
   "icon": "media/icon.png",
   "license": "MIT",
@@ -130,6 +130,11 @@
           "type": "string",
           "default": "",
           "description": "Path to the qflow CLI binary. Leave blank to use a locally installed binary or `npx @qflow/cli`."
+        },
+        "qflow.githubToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "GitHub personal access token for AI features (heal, generate). Leave blank to use `GITHUB_TOKEN` env var or the `gh` CLI automatically."
         },
         "qflow.defaultSuite": {
           "type": "string",
